@@ -71,7 +71,7 @@ export default function Layout() {
   const newDrawing = (kind?: Kind | 'ask', folderId?: number | null) => {
     closeDrawer()
     const k = kind || settings?.default_kind || 'ask'
-    setCreating({ kind: k === 'drawio' && !settings?.drawio_url ? 'ask' : k, folderId: folderId === undefined ? currentFolder() : folderId })
+    setCreating({ kind: k, folderId: folderId === undefined ? currentFolder() : folderId })
   }
   const importFiles = (files?: File[]) => { closeDrawer(); setImporting(files || []) }
 
@@ -112,7 +112,7 @@ export default function Layout() {
     { id: 'new', label: 'New drawing…', icon: 'plus', hint: 'N', keywords: 'create add', run: () => newDrawing('ask') },
     { id: 'new-sketch', label: 'New sketch', icon: KINDS.sketch.icon, hint: 'S', keywords: 'excalidraw whiteboard draw', run: () => newDrawing('sketch') },
     { id: 'new-mermaid', label: 'New text diagram', icon: KINDS.mermaid.icon, hint: 'D', keywords: 'mermaid flowchart code', run: () => newDrawing('mermaid') },
-    ...(settings?.drawio_url ? [{ id: 'new-drawio', label: 'New diagram (draw.io)', icon: KINDS.drawio.icon, keywords: 'drawio diagrams.net floor plan', run: () => newDrawing('drawio') }] : []),
+    { id: 'new-drawio', label: settings?.drawio_url ? 'New diagram (draw.io)' : 'New diagram (draw.io) — not switched on yet', icon: KINDS.drawio.icon, keywords: 'drawio diagrams.net floor plan', run: () => newDrawing('drawio') },
     { id: 'ai', label: 'Describe a diagram, AI draws it', icon: 'sparkles', keywords: 'ai generate mermaid', run: () => newDrawing('mermaid') },
     { id: 'import', label: 'Import drawings…', icon: 'upload', hint: 'I', keywords: 'excalidraw drawio mermaid file open', run: () => importFiles() },
     { id: 'all', label: 'All drawings', icon: 'grid', hint: '1', run: () => navigate('/') },

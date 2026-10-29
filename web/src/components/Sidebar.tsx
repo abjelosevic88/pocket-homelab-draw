@@ -40,7 +40,7 @@ export function Sidebar({ onNavigate }: { onNavigate: () => void }) {
         {KIND_ORDER.map(k => (
           <NavLink key={k} to={`/kind/${k}`} onClick={onNavigate} className={({ isActive }) => `sb-nav-item ${isActive ? 'active' : ''}`}>
             <Icon name={KINDS[k].icon} size={16} /><span className="grow">{KINDS[k].plural}</span>
-            {!!counts?.kinds?.[k] && <span className="sb-count">{n(counts.kinds[k])}</span>}
+            {k === 'drawio' && !settings?.drawio_url && !counts?.kinds?.[k] ? <span className="sb-off" title="Not switched on yet: needs draw.io">off</span> : !!counts?.kinds?.[k] && <span className="sb-count">{n(counts.kinds[k])}</span>}
           </NavLink>
         ))}
       </section>

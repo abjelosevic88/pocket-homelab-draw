@@ -11,6 +11,7 @@ import { Select } from '../components/Select'
 import { Confirm, Empty, Loading, type MenuItem, MenuButton, Segmented, download, useDebounce, useToast } from '../components/ui'
 import { useCrumb, useDraw } from '../components/Layout'
 import { FolderDialog, MoveDialog, RenameDialog } from '../components/Dialogs'
+import { DrawioHelp } from '../components/DrawioHelp'
 
 export type View = 'all' | 'recent' | 'starred' | 'trash' | 'kind' | 'folder' | 'search'
 
@@ -131,8 +132,8 @@ export default function Drawings({ view }: { view: View }) {
         <p className="muted">Pick what suits the idea. Everything is kept here with its history; nothing to install.</p>
         <div className="kind-cards">
           {(['sketch', 'mermaid', 'drawio'] as Kind[]).map(k => (
-            <button key={k} type="button" className={`kind-card k-${k}`} disabled={k === 'drawio' && !settings?.drawio_url} onClick={() => newDrawing(k)}>
-              <span className="kind-ico"><Icon name={KINDS[k].icon} size={22} /></span><span className="kind-name">{KINDS[k].label}</span><span className="kind-blurb">{k === 'drawio' && !settings?.drawio_url ? 'Needs a draw.io server — an admin adds its address in Settings.' : KINDS[k].blurb}</span>
+            <button key={k} type="button" className={`kind-card k-${k} ${k === 'drawio' && !settings?.drawio_url ? 'not-ready' : ''}`} onClick={() => newDrawing(k)}>
+              <span className="kind-ico"><Icon name={KINDS[k].icon} size={22} /></span><span className="kind-name">{KINDS[k].label}</span><span className="kind-blurb">{KINDS[k].blurb}{k === 'drawio' && !settings?.drawio_url && <b className="kind-off"> Not switched on yet.</b>}</span>
             </button>
           ))}
         </div>
@@ -161,6 +162,7 @@ export default function Drawings({ view }: { view: View }) {
         {headActions}
       </div>
 
+      {view === 'kind' && kind === 'drawio' && <div className="mb"><DrawioHelp /></div>}
       {!list ? <Loading /> : list.length === 0 ? empty() : style === 'grid' ? (
         <div className="dr-grid">
           {list.map(d => <Card key={d.id} d={d} trash={view === 'trash'} onOpen={() => view !== 'trash' && navigate(`/d/${d.id}`)} onStar={() => patch(d, { starred: !d.starred })} menu={() => menu(d)} />)}

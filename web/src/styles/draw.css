@@ -187,3 +187,32 @@
 .sel-check { color: var(--accent); display: grid; }
 .sel-empty { padding: 14px; font-size: 13px; color: var(--muted); text-align: center; }
 .sel-opt.is-disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---- draw.io not switched on yet ---- */
+.dio-help { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border); border-left: 3px solid var(--kind, #e8590c); border-radius: var(--radius); background: var(--surface-2); text-align: left; font-size: 13.5px; line-height: 1.5; --kind: #e8590c; }
+[data-theme="dark"] .dio-help { --kind: #ff922b; }
+.dio-help.compact { padding: 10px 12px; }
+.dio-help-head { display: flex; align-items: center; gap: 8px; color: var(--kind); }
+.dio-help-head b { color: var(--text); }
+.dio-help p { margin: 0; }
+.dio-missing .dio-help { max-width: 520px; }
+.kind-card.not-ready .kind-ico { filter: grayscale(.7); opacity: .7; }
+.kind-name .badge { margin-left: 8px; vertical-align: middle; font-weight: 500; }
+.kind-off { color: var(--muted); font-weight: 600; }
+.sb-off { margin-left: auto; font-size: 11px; color: var(--faint); border: 1px solid var(--border); border-radius: 999px; padding: 0 6px; line-height: 16px; }
+
+/* ---- Settings pieces that live in each app's own stylesheet (as in the canon) ---- */
+.grid { display: grid; }
+.set-section-head .set-app-ico { background: var(--accent-soft); color: var(--accent-ink); }
+.set-short { max-width: 220px; }
+.set-pre { white-space: pre-wrap; background: var(--surface-2); border-radius: 8px; padding: 10px 12px; margin: 6px 0 0; }
+.set-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.conn-block { display: grid; gap: 12px; }
+.conn-mode { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.conn-advanced { background: none; border: 0; padding: 0; font: inherit; font-size: 12.5px; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.conn-advanced:hover { color: var(--text); }
+.conn-status { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--muted); padding: 9px 12px; border-radius: 10px; background: var(--surface-2); line-height: 1.45; }
+.conn-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex-shrink: 0; margin-top: 5px; }
+.conn-status.ok { color: var(--text); }
+.conn-status.ok .dot { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+.conn-status.bad .dot { background: var(--warning); box-shadow: 0 0 0 3px var(--warning-soft); }

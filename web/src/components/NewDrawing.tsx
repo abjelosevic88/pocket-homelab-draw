@@ -9,6 +9,7 @@ import { Icon } from './icons'
 import { Select } from './Select'
 import { CoreHint, Field, Modal, Spinner, useToast } from './ui'
 import { useDraw } from './Layout'
+import { DrawioHelp } from './DrawioHelp'
 
 export function NewDrawing({ kind: initial, folderId, onClose }: { kind: Kind | 'ask'; folderId: number | null; onClose: () => void }) {
   const { settings } = useApp()
@@ -54,16 +55,18 @@ export function NewDrawing({ kind: initial, folderId, onClose }: { kind: Kind | 
         {KIND_ORDER.map(k => {
           const off = k === 'drawio' && !drawio
           return (
-            <button key={k} type="button" role="radio" aria-checked={kind === k} disabled={off} className={`kind-card k-${k} ${kind === k ? 'on' : ''}`} onClick={() => setKind(k)}
+            <button key={k} type="button" role="radio" aria-checked={kind === k} className={`kind-card k-${k} ${kind === k ? 'on' : ''} ${off ? 'not-ready' : ''}`} onClick={() => setKind(k)}
               onDoubleClick={() => { if (!off) { setKind(k); if (k !== 'mermaid') void create() } }}
-              title={off ? 'Needs a draw.io server: an admin adds its address in Settings → General' : undefined}>
+              title={off ? 'Not switched on yet: needs draw.io' : undefined}>
               <span className="kind-ico"><Icon name={KINDS[k].icon} size={22} /></span>
-              <span className="kind-name">{KINDS[k].label}</span>
-              <span className="kind-blurb">{off ? 'Needs a draw.io server — an admin adds its address in Settings.' : KINDS[k].blurb}</span>
+              <span className="kind-name">{KINDS[k].label}{off && <span className="badge">not on yet</span>}</span>
+              <span className="kind-blurb">{KINDS[k].blurb}</span>
             </button>
           )
         })}
       </div>
+
+      {kind === 'drawio' && !drawio && <div className="mt"><DrawioHelp /></div>}
 
       {kind === 'mermaid' && <div className="new-mermaid">
         <div className="tpl-grid" role="radiogroup" aria-label="Start from">
@@ -89,7 +92,7 @@ export function NewDrawing({ kind: initial, folderId, onClose }: { kind: Kind | 
         <button type="button" className="btn" onClick={onClose}>Cancel</button>
         {kind === 'mermaid' && prompt.trim()
           ? <button type="button" className="btn primary" onClick={draft} disabled={!!busy}>{busy ? <Spinner /> : <Icon name="sparkles" size={15} />}{busy === 'ai' ? 'Drawing…' : 'Draw it'}</button>
-          : <button type="button" className="btn primary" onClick={() => create()} disabled={!!busy}>{busy ? <Spinner /> : <Icon name="plus" size={15} />}Create</button>}
+          : <button type="button" className="btn primary" onClick={() => create()} disabled={!!busy || (kind === 'drawio' && !drawio)}>{busy ? <Spinner /> : <Icon name="plus" size={15} />}Create</button>}
       </div>
     </Modal>
   )

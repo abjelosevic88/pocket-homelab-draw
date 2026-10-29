@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { dataUrlText } from '../lib/draw'
 import { Icon } from './icons'
 import { Spinner } from './ui'
+import { DrawioHelp } from './DrawioHelp'
 import type { EditorProps } from './SketchEditor'
 
 export default function DrawioEditor({ data, title, dark, settings, onChange }: EditorProps) {
@@ -54,8 +55,9 @@ export default function DrawioEditor({ data, title, dark, settings, onChange }: 
   if (!origin) return (
     <div className="dio-missing">
       <Icon name="shapes" size={28} />
-      <h3>There is no draw.io server yet</h3>
-      <p className="muted">Diagrams open in draw.io. An admin adds its address under Settings → General (the <code>jgraph/drawio</code> image on this box, or https://embed.diagrams.net). The diagram itself is kept here either way.</p>
+      <h3>This diagram is safe, but it cannot be opened here yet</h3>
+      <DrawioHelp />
+      <p className="muted small">Meanwhile you can download it (menu ⋯ → File for draw.io) and open it at app.diagrams.net.</p>
     </div>
   )
   const q = new URLSearchParams({ embed: '1', proto: 'json', spin: '1', libraries: '1', noSaveBtn: '1', noExitBtn: '1', saveAndExit: '0', ui: 'min', dark: dark ? '1' : '0', lang: 'en' })
