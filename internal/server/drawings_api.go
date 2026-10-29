@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -404,9 +406,39 @@ func (s *Server) handleDuplicate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, cp)
 }
 
+var (
+	svgOpenRe  = regexp.MustCompile(`<svg\b[^>]*>`)
+	svgViewRe  = regexp.MustCompile(`viewBox="\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"`)
+	svgSizeRe  = regexp.MustCompile(`\s(width|height)="[^"]*"`)
+	svgWidthRe = regexp.MustCompile(`\swidth="\s*100%\s*"`)
+)
+
+// pictureSize gives a picture drawn "to fit the page" (Mermaid's width="100%")
+// its own size from its viewBox, so an <img> elsewhere (a note, an issue)
+// shows it at that size instead of a small default.
+func pictureSize(svg string) string {
+	open := svgOpenRe.FindString(svg)
+	if open == "" || !svgWidthRe.MatchString(open) {
+		return svg
+	}
+	vb := svgViewRe.FindStringSubmatch(open)
+	if vb == nil {
+		return svg
+	}
+	w, err1 := strconv.ParseFloat(vb[1], 64)
+	h, err2 := strconv.ParseFloat(vb[2], 64)
+	if err1 != nil || err2 != nil || w <= 0 || h <= 0 {
+		return svg
+	}
+	tag := svgSizeRe.ReplaceAllString(open, "")
+	tag = strings.Replace(tag, "<svg", fmt.Sprintf(`<svg width="%d" height="%d"`, int(math.Ceil(w)), int(math.Ceil(h))), 1)
+	return strings.Replace(svg, open, tag, 1)
+}
+
 // serveSVG sends a stored picture so that, opened on its own, nothing in it
 // can run (it is shown with <img> in the app).
 func serveSVG(w http.ResponseWriter, r *http.Request, svg, etag string) {
+	svg = pictureSize(svg)
 	h := w.Header()
 	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:")
 	h.Set("X-Content-Type-Options", "nosniff")

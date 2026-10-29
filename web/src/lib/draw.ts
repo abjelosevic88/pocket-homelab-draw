@@ -85,8 +85,20 @@ export function mermaidError(e: unknown): string {
 
 /** A picture of a text diagram with a white background, for the list and Pocket Files. */
 export async function mermaidPicture(code: string, look: MermaidLook): Promise<string> {
-  const svg = await renderMermaid(code, look, true)
-  return svg.replace(/<svg([^>]*?)style="([^"]*)"/, (_m, a, s) => `<svg${a}style="${s};background-color:#ffffff"`)
+  return pictureSize(await renderMermaid(code, look, true))
+}
+
+/** Mermaid draws to fit the page (width="100%", a max-width): as a picture elsewhere (an <img> in a note) it
+ *  needs its own size, else browsers show it at a small default. The size comes from its viewBox. */
+export function pictureSize(svg: string): string {
+  const open = svg.match(/<svg\b[^>]*>/)
+  if (!open) return svg
+  const vb = open[0].match(/viewBox="\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/)
+  let tag = open[0].replace(/\s(width|height)="[^"]*"/g, '')
+  tag = tag.replace(/style="([^"]*)"/, (_m, st: string) => `style="${st.replace(/max-width:[^;]*;?/g, '')};background-color:#ffffff"`)
+  if (!/style="/.test(tag)) tag = tag.replace(/^<svg/, '<svg style="background-color:#ffffff"')
+  if (vb) tag = tag.replace(/^<svg/, `<svg width="${Math.ceil(Number(vb[1]))}" height="${Math.ceil(Number(vb[2]))}"`)
+  return svg.replace(open[0], tag)
 }
 
 // ---- Excalidraw ----

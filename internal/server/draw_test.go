@@ -537,3 +537,15 @@ func TestUsedInNotesAndProjects(t *testing.T) {
 		t.Fatalf("picture without signing in: %d", res.StatusCode)
 	}
 }
+
+func TestPictureSize(t *testing.T) {
+	in := `<svg id="m" width="100%" xmlns="http://www.w3.org/2000/svg" style="max-width: 386.5px;" viewBox="-8 -8 386.5 1150.4"><g/></svg>`
+	out := pictureSize(in)
+	if !strings.HasPrefix(out, `<svg width="387" height="1151" id="m"`) || strings.Contains(out, `100%`) {
+		t.Fatalf("sized: %s", out)
+	}
+	sized := `<svg width="200" height="100" viewBox="0 0 400 200"></svg>`
+	if pictureSize(sized) != sized {
+		t.Fatalf("a picture with its own size changed")
+	}
+}

@@ -55,7 +55,7 @@ func (s *Server) copyToFiles(ctx context.Context, cl *clients, id int64) (string
 		return "", err
 	}
 	if svg, rev, _ := s.store.DrawingPreview(ctx, uid, id); svg != "" && rev == d.Rev {
-		if _, err := sib.client.Upload(ctx, target+".svg", []byte(svg), "image/svg+xml", mtime); err != nil {
+		if _, err := sib.client.Upload(ctx, target+".svg", []byte(pictureSize(svg)), "image/svg+xml", mtime); err != nil {
 			_ = s.store.SetFilesCopy(ctx, uid, id, "", 0, err.Error())
 			return "", err
 		}
