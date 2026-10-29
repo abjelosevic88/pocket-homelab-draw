@@ -22,7 +22,11 @@ import (
 // tokens are asked for per request with only the scopes the work needs and
 // never kept, so a link switched off in Core applies at once.
 
-const scopeFilesWrite = "files:write"
+const (
+	scopeFilesWrite   = "files:write"
+	scopeNotesRead    = "notes:read"
+	scopeProjectsRead = "projects:read"
+)
 
 // pocketApp is one sibling Pocket app Draw acts in.
 type pocketApp struct {
@@ -32,8 +36,10 @@ type pocketApp struct {
 }
 
 var (
-	appFiles   = pocketApp{"files", "Pocket Files", []string{scopeFilesWrite}, "Keep a copy of each drawing (a picture and the file) in a folder of your files, kept up to date as you draw"}
-	pocketApps = []pocketApp{appFiles}
+	appFiles    = pocketApp{"files", "Pocket Files", []string{scopeFilesWrite}, "Keep a copy of each drawing (a picture and the file) in a folder of your files, kept up to date as you draw"}
+	appNotes    = pocketApp{"notes", "Pocket Notes", []string{scopeNotesRead}, "Show which of your notes have a drawing in them (Used in), and start a note with a drawing"}
+	appProjects = pocketApp{"projects", "Pocket Projects", []string{scopeProjectsRead}, "Show which issues and projects have a drawing in them (Used in)"}
+	pocketApps  = []pocketApp{appFiles, appNotes, appProjects}
 )
 
 func appBySlug(slug string) (pocketApp, bool) {
@@ -113,8 +119,13 @@ func linkReason(app, reason string) string {
 
 // connSettings returns a person's saved mode, URL, token and public URL for an app.
 func connSettings(st store.Settings, a pocketApp) (mode, url, token, public string) {
-	if a.slug == "files" {
+	switch a.slug {
+	case "files":
 		return st.FilesMode, st.FilesURL, st.FilesToken, st.FilesPublicURL
+	case "notes":
+		return st.NotesMode, st.NotesURL, st.NotesToken, st.NotesPublicURL
+	case "projects":
+		return st.ProjectsMode, st.ProjectsURL, st.ProjectsToken, st.ProjectsPublicURL
 	}
 	return "", "", "", ""
 }

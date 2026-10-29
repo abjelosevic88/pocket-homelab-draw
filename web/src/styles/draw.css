@@ -216,3 +216,12 @@
 .conn-status.ok { color: var(--text); }
 .conn-status.ok .dot { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
 .conn-status.bad .dot { background: var(--warning); box-shadow: 0 0 0 3px var(--warning-soft); }
+
+/* ---- used in ---- */
+.used-src { display: flex; flex-direction: column; gap: 6px; }
+.used-h { font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.used-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.used-list li + li { border-top: 1px solid var(--hairline); }
+.used-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; color: inherit; }
+.used-row:hover { background: var(--hover); }
+.used-put { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--hairline); }

@@ -86,6 +86,11 @@ func (c *Client) do(ctx context.Context, method, path string, q url.Values, body
 	return json.NewDecoder(res.Body).Decode(v)
 }
 
+// Get calls a GET endpoint and decodes the JSON answer.
+func (c *Client) Get(ctx context.Context, path string, q url.Values, v any) error {
+	return c.do(ctx, http.MethodGet, path, q, nil, v)
+}
+
 // Health is the connection test for any Pocket app: /healthz plus a token check.
 func (c *Client) Health(ctx context.Context) (string, error) {
 	var out struct {

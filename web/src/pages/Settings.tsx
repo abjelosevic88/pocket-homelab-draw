@@ -18,7 +18,7 @@ type TabId = 'general' | 'notifications' | 'apps' | 'ai' | 'profile' | 'people' 
 const TABS: { id: TabId; label: string; icon: string; sub: string }[] = [
   { id: 'general', label: 'General', icon: 'pen', sub: 'What a new drawing starts as, how sketches and text diagrams look, the list, the trash and history.' },
   { id: 'notifications', label: 'Notifications', icon: 'bell', sub: 'A word when another app adds a drawing for you, or when copies stop reaching Pocket Files.' },
-  { id: 'apps', label: 'Connected apps', icon: 'layers', sub: 'Pocket Files keeps a copy of each drawing; other Pocket apps can see and add drawings.' },
+  { id: 'apps', label: 'Connected apps', icon: 'layers', sub: 'Pocket Files keeps a copy of each drawing; Notes and Projects show drawings and tell Draw where they are used.' },
   { id: 'ai', label: 'AI', icon: 'sparkles', sub: 'Who drafts and fixes text diagrams: Pocket AI through Core, or your own OpenAI key.' },
   { id: 'profile', label: 'Profile', icon: 'user', sub: 'Your name, email and password.' },
   { id: 'people', label: 'People', icon: 'users', sub: 'Everyone who has an account on this box.' },
@@ -217,9 +217,24 @@ function Integrations() {
           <SettingRow title="Keep the copies up to date" help="A couple of minutes after you stop drawing, the copy follows. Off: use “Copy to Pocket Files” in a drawing’s menu."><Switch checked={f.files_auto} onChange={v => setF({ ...f, files_auto: v })} label="Automatic" /></SettingRow>
         </div>}
       </Section>
+      {([['notes', 'Pocket Notes — notes with a drawing in them', 'note', 'A drawing can be shown inside a note (in Pocket Notes: / → Drawing). Here Draw only looks which of your notes show a drawing, for its “Used in” list, and can start a new note with one. It never changes your notes.', 'http://host.docker.internal:8182', 'Pocket Notes → Settings → API tokens'],
+        ['projects', 'Pocket Projects — issues with a drawing in them', 'check-square', 'A drawing can be shown in an issue or a project (Pocket Projects: the Drawing button under the text). Here Draw only looks which of them show a drawing, for its “Used in” list.', 'http://host.docker.internal:8196', 'Pocket Projects → Settings → API tokens']] as const).map(([app, title, icon, sub, ph, help]) => {
+        const k = app as 'notes' | 'projects'
+        return (
+          <Section key={app} title={title} icon={icon} actions={connBadge(eff(f[`${k}_mode`]), f[`${k}_via`])} sub={sub}>
+            <Connection app={app === 'notes' ? 'Pocket Notes' : 'Pocket Projects'} mode={f[`${k}_mode`]} via={f[`${k}_via`]} detail={f[`${k}_detail`]} core={coreOn} hasToken={!!f[`${k}_token`]}
+              onMode={m => save({ [`${k}_mode`]: m } as Partial<SettingsT>)} onDisconnect={() => save({ [`${k}_url`]: '', [`${k}_token`]: '' } as Partial<SettingsT>)}
+              test={<><button type="button" className="btn sm" onClick={() => run(app, f[`${k}_url`], f[`${k}_token`])}>Test connection</button>{status(app)}</>}
+              direct={<div className="two-col tight">
+                <Field label="URL" help="Inside Docker use http://host.docker.internal:PORT or the service name."><input value={f[`${k}_url`]} onChange={e => setF({ ...f, [`${k}_url`]: e.target.value })} placeholder={ph} /></Field>
+                <Field label="API token" help={help}><input value={f[`${k}_token`]} onChange={e => setF({ ...f, [`${k}_token`]: e.target.value })} autoComplete="off" /></Field>
+              </div>} />
+          </Section>
+        )
+      })}
       <Section title="Other Pocket apps" icon="layers" sub="Draw offers your drawings to the rest of the box through Pocket Core. Each app asks for it and you switch it on in Pocket Core → Links.">
         <dl className="set-dl">
-          <div><dt>drawings:read</dt><dd className="muted">See your drawings and their pictures, and what you drew on a day (Pocket Day can write it into your journal).</dd></div>
+          <div><dt>drawings:read</dt><dd className="muted">See your drawings and show their pictures — a drawing inside a note or an issue — and what you drew on a day (Pocket Day can write it into your journal).</dd></div>
           <div><dt>drawings:write</dt><dd className="muted">Add drawings for you — a diagram Pocket AI wrote, a flowchart from a project. An app may change or remove only what it added.</dd></div>
         </dl>
       </Section>

@@ -16,6 +16,7 @@ A drawing has a `kind`: `sketch` (an Excalidraw scene, JSON), `mermaid` (Mermaid
 | `POST /drawings/{id}/restore` · `/duplicate` | Out of the trash · a copy |
 | `GET /drawings/{id}/preview.svg` | The picture (made by the browser on save; served with a CSP that runs nothing) |
 | `GET /drawings/{id}/file` | The file other tools open: `.excalidraw`, `.mmd`, `.drawio` |
+| `GET /drawings/{id}/used` | Where it is shown: `{page_url, picture_url, markdown, sources: [{app, name, connected, detail, items: [{kind, title, detail, url, modified}], open_url}]}` — asked of Pocket Notes and Pocket Projects as the person (their `/mentions`) |
 | `POST /drawings/{id}/files` | Copy it to Pocket Files now → `{ok, path, open_url}` or `{ok:false, error}` |
 | `GET /drawings/{id}/versions` | Kept versions, newest first (one per ten minutes of editing, and before a restore) |
 | `GET /drawings/{id}/versions/{vid}` · `/preview.svg` · `POST …/restore` | One version · its picture · put it back (the current state is kept as a version) |
@@ -41,11 +42,21 @@ A drawing has a `kind`: `sketch` (an Excalidraw scene, JSON), `mermaid` (Mermaid
 
 `POST /ai/diagram {prompt, code?, type?}` → `{ok, title, code}` (drafts a text diagram, or changes `code` as asked) · `POST /ai/fix {code, error}` → `{ok, code, change}` · `GET /ai/status`.
 
+## A drawing in a note or an issue
+
+A drawing's page is `BASE_URL/d/{id}`; its picture answers under it at **`BASE_URL/d/{id}/picture.svg`** (outside `/api`, same auth: a signed-in browser, a token, or a `drawings:read` link). Markdown elsewhere embeds it as
+
+```
+![Floor plan](https://draw.example.com/d/12/picture.svg "Floor plan")
+```
+
+Pocket Notes and Pocket Projects show that picture through their own proxy (as the person, link `drawings:read`), and because the picture is under the drawing's page, the note or issue counts as linking to the drawing: `GET /drawings/{id}/used` finds it through their `/mentions`.
+
 ## Pocket Core app links
 
 | Scope | Allows |
 |---|---|
-| `drawings:read` | `GET /dashboard`, `/drawings`, `/folders`, `/drawings/{id}` (+ `/preview.svg`, `/file`), `/day/{date}` |
+| `drawings:read` | `GET /dashboard`, `/drawings`, `/folders`, `/drawings/{id}` (+ `/preview.svg`, `/file`), `/day/{date}`, `/d/{id}/picture.svg` |
 | `drawings:write` | `POST /drawings`; `PUT`/`DELETE /drawings/{id}` only for drawings that app added (`source` = its slug) |
 
 Events on the bus: `draw.created`, `draw.edited` (at most once per ten minutes of editing, and on restore), `draw.deleted`; each carries `user_email`.

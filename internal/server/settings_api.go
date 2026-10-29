@@ -41,6 +41,8 @@ func (s *Server) publicSettings(ctx context.Context, u *store.User, st store.Set
 		"notify_url": st.NotifyURL, "notify_format": st.NotifyFormat, "notify_configured": st.NotifyURL != "",
 		"notify_link_adds": st.NotifyLinkAdds, "notify_files_errors": st.NotifyFiles,
 		"files_url": st.FilesURL, "files_token": mask(st.FilesToken), "files_public_url": st.FilesPublicURL, "files_folder": st.FilesFolder, "files_auto": st.FilesAuto,
+		"notes_url": st.NotesURL, "notes_token": mask(st.NotesToken), "notes_public_url": st.NotesPublicURL,
+		"projects_url": st.ProjectsURL, "projects_token": mask(st.ProjectsToken), "projects_public_url": st.ProjectsPublicURL,
 		"ai_provider": st.AIProvider, "ai_pocket_model": st.AIPocketModel, "openai_api_key": mask(st.OpenAIKey), "openai_model": st.OpenAIModel, "openai_base_url": st.OpenAIBaseURL,
 		"ai_language":    st.AILanguage,
 		"setup_complete": st.SetupComplete, "base_url": s.cfg.BaseURL, "max_body_bytes": s.cfg.MaxBodyBytes,
@@ -205,6 +207,18 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	url("openai_base_url", &cur.OpenAIBaseURL, in.OpenAIBaseURL)
 	if keys["files_mode"] && (in.FilesMode == modeCore || in.FilesMode == modeDirect || in.FilesMode == modeOff) {
 		cur.FilesMode = in.FilesMode
+	}
+	url("notes_url", &cur.NotesURL, in.NotesURL)
+	secret("notes_token", &cur.NotesToken, in.NotesToken)
+	url("notes_public_url", &cur.NotesPublicURL, in.NotesPublicURL)
+	if keys["notes_mode"] && (in.NotesMode == modeCore || in.NotesMode == modeDirect || in.NotesMode == modeOff) {
+		cur.NotesMode = in.NotesMode
+	}
+	url("projects_url", &cur.ProjectsURL, in.ProjectsURL)
+	secret("projects_token", &cur.ProjectsToken, in.ProjectsToken)
+	url("projects_public_url", &cur.ProjectsPublicURL, in.ProjectsPublicURL)
+	if keys["projects_mode"] && (in.ProjectsMode == modeCore || in.ProjectsMode == modeDirect || in.ProjectsMode == modeOff) {
+		cur.ProjectsMode = in.ProjectsMode
 	}
 	if err := s.store.SaveUserSettings(r.Context(), me.ID, cur); err != nil {
 		s.fail(w, err, "save settings")

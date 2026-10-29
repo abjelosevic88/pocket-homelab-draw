@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -465,4 +466,74 @@ func TestDemoSeeds(t *testing.T) {
 
 func newRawDeflate(w io.Writer) (io.WriteCloser, error) {
 	return flate.NewWriter(w, flate.DefaultCompression)
+}
+
+// A drawing knows where it is used by asking Notes and Projects (as the
+// person) which notes and issues link to its page; its picture answers at an
+// address under that page.
+func TestUsedInNotesAndProjects(t *testing.T) {
+	var asked []string
+	var mu sync.Mutex
+	fake := func(answer string) *httptest.Server {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") != "Bearer tok" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			mu.Lock()
+			asked = append(asked, r.URL.Path+"?"+r.URL.RawQuery)
+			mu.Unlock()
+			w.Header().Set("Content-Type", "application/json")
+			io.WriteString(w, answer)
+		}))
+		t.Cleanup(srv.Close)
+		return srv
+	}
+	notes := fake(`[{"id":7,"title":"Flat ideas","category":"Home","modified":1793000000}]`)
+	projects := fake(`[{"kind":"issue","id":3,"identifier":"WEB-12","title":"New layout","url":"http://projects.test/issue/WEB-12","team":"Web"}]`)
+	a := newApp(t, nil)
+	id := a.create(a.alice, "sketch", "Floor (plan) [v2]", scene)
+	a.ok(a.alice, "PUT", "/api/v1/settings", map[string]any{
+		"notes_mode": "direct", "notes_url": notes.URL, "notes_token": "tok", "notes_public_url": "http://notes.test",
+		"projects_mode": "direct", "projects_url": projects.URL, "projects_token": "tok"})
+	u := a.ok(a.alice, "GET", fmt.Sprintf("/api/v1/drawings/%d/used", id), nil)
+	page := fmt.Sprintf("http://draw.test/d/%d", id)
+	if u["page_url"] != page || u["picture_url"] != page+"/picture.svg" {
+		t.Fatalf("addresses: %v", u)
+	}
+	if u["markdown"] != fmt.Sprintf(`![Floor plan v2](%s/picture.svg "Floor plan v2")`, page) {
+		t.Fatalf("embed markdown: %v", u["markdown"])
+	}
+	src := u["sources"].([]any)
+	n, p := src[0].(map[string]any), src[1].(map[string]any)
+	ni, pi := n["items"].([]any), p["items"].([]any)
+	if len(ni) != 1 || ni[0].(map[string]any)["url"] != "http://notes.test/note/7" || len(pi) != 1 || pi[0].(map[string]any)["title"] != "WEB-12 New layout" {
+		t.Fatalf("used in: %v", src)
+	}
+	if !strings.Contains(n["open_url"].(string), "http://notes.test/new?") || !strings.Contains(n["open_url"].(string), "image=1") {
+		t.Fatalf("new note address: %v", n["open_url"])
+	}
+	for _, q := range asked {
+		if !strings.Contains(q, "url="+url.QueryEscape(page)) {
+			t.Fatalf("asked for the wrong address: %s", q)
+		}
+	}
+	// not connected: says why, nothing breaks
+	a.ok(a.bob, "PUT", "/api/v1/settings", map[string]any{"notes_mode": "off"})
+	bid := a.create(a.bob, "mermaid", "B", "graph TD\n A-->B\n")
+	b := a.ok(a.bob, "GET", fmt.Sprintf("/api/v1/drawings/%d/used", bid), nil)
+	if bs := b["sources"].([]any)[0].(map[string]any); bs["connected"] != false || bs["detail"] == "" {
+		t.Fatalf("switched off: %v", bs)
+	}
+	// the picture under the page, for a signed-in browser or a token; nobody else's
+	res, body := a.do(a.alice, "GET", fmt.Sprintf("/d/%d/picture.svg", id), "", nil)
+	if res.StatusCode != 200 || !strings.HasPrefix(string(body), "<svg") || !strings.Contains(res.Header.Get("Content-Security-Policy"), "default-src 'none'") {
+		t.Fatalf("picture: %d %s", res.StatusCode, body)
+	}
+	if res, _ := a.do(a.bob, "GET", fmt.Sprintf("/d/%d/picture.svg", id), "", nil); res.StatusCode != 404 {
+		t.Fatalf("someone else's picture: %d", res.StatusCode)
+	}
+	if res, _ := a.do("", "GET", fmt.Sprintf("/d/%d/picture.svg", id), "", nil); res.StatusCode != 401 {
+		t.Fatalf("picture without signing in: %d", res.StatusCode)
+	}
 }

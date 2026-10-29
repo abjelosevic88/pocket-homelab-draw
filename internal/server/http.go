@@ -65,6 +65,7 @@ func (s *Server) Router() http.Handler {
 			r.Post("/drawings/{id}/files", s.handleCopyToFiles)
 			r.Get("/drawings/{id}/preview.svg", s.handlePreview)
 			r.Get("/drawings/{id}/file", s.handleFile)
+			r.Get("/drawings/{id}/used", s.handleUsedIn)
 			r.Get("/drawings/{id}/versions", s.handleListVersions)
 			r.Get("/drawings/{id}/versions/{vid}", s.handleGetVersion)
 			r.Get("/drawings/{id}/versions/{vid}/preview.svg", s.handleVersionPreview)
@@ -107,6 +108,11 @@ func (s *Server) Router() http.Handler {
 			r.Post("/import", s.handleImport)
 		})
 	})
+
+	// A drawing's picture at an address under its page, for Markdown elsewhere
+	// (![…](…/d/12/picture.svg) in a note or an issue). Notes and Projects
+	// show it through their own proxy; a browser signed in here shows it too.
+	r.With(s.requireAuth).Get("/d/{id}/picture.svg", s.handlePreview)
 
 	r.NotFound(s.handleSPA)
 	return r

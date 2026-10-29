@@ -16,6 +16,10 @@ export interface Settings {
   notify_url: string; notify_format: string; notify_configured: boolean; notify_link_adds: boolean; notify_files_errors: boolean
   files_mode: ConnMode; files_via: ConnVia; files_detail: string; files_open_url: string; files_configured: boolean
   files_url: string; files_token: string; files_public_url: string; files_folder: string; files_auto: boolean
+  notes_mode: ConnMode; notes_via: ConnVia; notes_detail: string; notes_open_url: string; notes_configured: boolean
+  notes_url: string; notes_token: string; notes_public_url: string
+  projects_mode: ConnMode; projects_via: ConnVia; projects_detail: string; projects_open_url: string; projects_configured: boolean
+  projects_url: string; projects_token: string; projects_public_url: string
   ai_provider: 'auto' | 'pocket' | 'openai'; ai_pocket_model: string; openai_api_key: string; openai_model: string; openai_base_url: string
   ai_language: string
   setup_complete: boolean; base_url: string; max_body_bytes: number

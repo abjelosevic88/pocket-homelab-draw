@@ -17,7 +17,7 @@ import (
 // in linkRoutes stays closed to it (403).
 
 var linkOffers = []core.Offer{
-	{Scope: "drawings:read", Name: "See your drawings", Description: "List your sketches and diagrams, open them and their pictures, and see what you drew on a day — for your journal, notes and dashboards."},
+	{Scope: "drawings:read", Name: "See your drawings", Description: "List your sketches and diagrams, open them and show their pictures (a drawing inside a note or an issue), and see what you drew on a day — for your journal, notes and dashboards."},
 	{Scope: "drawings:write", Name: "Add drawings", Description: "Add a drawing for you (a diagram written by Pocket AI, a flowchart from a project) and change or remove only the drawings it added itself."},
 }
 
@@ -32,6 +32,7 @@ var linkRoutes = []linkRoute{
 	{"GET", regexp.MustCompile(`^/api/v1/(dashboard|drawings|folders)$`), "drawings:read"},
 	{"GET", regexp.MustCompile(`^/api/v1/drawings/\d+(/(preview\.svg|file))?$`), "drawings:read"},
 	{"GET", regexp.MustCompile(`^/api/v1/day/\d{4}-\d{2}-\d{2}$`), "drawings:read"},
+	{"GET", regexp.MustCompile(`^/d/\d+/picture\.svg$`), "drawings:read"},
 	{"POST", regexp.MustCompile(`^/api/v1/drawings$`), "drawings:write"},
 	{"PUT DELETE", regexp.MustCompile(`^/api/v1/drawings/\d+$`), "drawings:write"},
 }

@@ -10,6 +10,7 @@ import { Icon } from '../components/icons'
 import { AskButton } from '../components/AskButton'
 import { Confirm, Loading, type MenuItem, MenuButton, Modal, Spinner, download, useToast } from '../components/ui'
 import { MoveDialog } from '../components/Dialogs'
+import { UsedIn } from '../components/UsedIn'
 import type { EditorProps } from '../components/SketchEditor'
 
 const SketchEditor = lazy(() => import('../components/SketchEditor'))
@@ -107,6 +108,7 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
   const [history, setHistory] = useState(false)
   const [move, setMove] = useState(false)
   const [trash, setTrash] = useState(false)
+  const [used, setUsed] = useState(false)
   const preview = useRef<(() => Promise<string>) | null>(null)
   const dark = document.documentElement.dataset.theme === 'dark'
   useEffect(() => { document.title = `${d.title} · Pocket Draw`; return () => { document.title = settings?.title || 'Pocket Draw' } }, [d.title, settings?.title])
@@ -151,6 +153,7 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
   const ext = d.kind === 'sketch' ? '.excalidraw' : d.kind === 'mermaid' ? '.mmd' : '.drawio'
   const menu = (): MenuItem[] => [
     { label: 'History…', icon: 'history', onSelect: () => setHistory(true), hint: d.versions ? String(d.versions) : undefined },
+    { label: 'Used in notes and issues…', icon: 'link', onSelect: () => setUsed(true) },
     { label: 'Move to a folder…', icon: 'folder', onSelect: () => setMove(true), hint: d.folder_name || undefined },
     { label: 'Duplicate', icon: 'copy', onSelect: duplicate },
     'sep',
@@ -178,6 +181,7 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
         <span className={`ed-status s-${saver.state}`} role="status" aria-live="polite">{icon ? <Icon name={icon} size={13} /> : <Spinner size={11} />}<span>{label}</span></span>
         <span className="spacer" />
         <button type="button" className={`btn ghost icon-only star-btn ${d.starred ? 'on' : ''}`} onClick={star} aria-pressed={d.starred} aria-label={d.starred ? 'Remove the star' : 'Star'} title={d.starred ? 'Remove the star' : 'Star'}><Icon name="star" size={17} /></button>
+        <button type="button" className="btn ghost icon-only ed-hide-s" onClick={() => setUsed(true)} aria-label="Used in" title="Used in notes and issues"><Icon name="link" size={17} /></button>
         <button type="button" className="btn ghost icon-only ed-hide-s" onClick={() => setHistory(true)} aria-label="History" title="History"><Icon name="history" size={17} /></button>
         <MenuButton label="More" align="right" width={260} items={menu}><Icon name="more" size={17} /></MenuButton>
         <AskButton />
@@ -195,6 +199,7 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
         </Suspense>
       </div>
       {history && <HistorySheet drawing={d} onClose={() => setHistory(false)} onRestored={async () => { setHistory(false); if (saver.pending()) await saver.flush(); reload(); toast('The earlier version is back; what you had is in History') }} />}
+      {used && <UsedIn drawing={d} onClose={() => setUsed(false)} />}
       {move && <MoveDialog drawing={d} onClose={() => setMove(false)} onDone={x => { setMove(false); setD(c => ({ ...c, folder_id: x.folder_id, folder_name: x.folder_name })) }} />}
       {trash && <Confirm title={`Move “${d.title}” to the trash?`} message={`It stays in the trash for ${settings?.trash_days || 30} days; you can put it back from there.`} confirmLabel="Move to trash" onCancel={() => setTrash(false)}
         onConfirm={async () => { setTrash(false); if (saver.pending()) await saver.flush(); await api.del(`${V1}/drawings/${d.id}`); announce(); navigate('/') }} />}

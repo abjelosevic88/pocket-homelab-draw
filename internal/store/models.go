@@ -125,6 +125,17 @@ type Settings struct {
 	FilesFolder    string `json:"files_folder"`
 	FilesAuto      bool   `json:"files_auto"` // keep the copies up to date by themselves
 
+	// Pocket Notes and Pocket Projects: which notes and issues show a drawing
+	// ("Used in"), read only.
+	NotesMode         string `json:"notes_mode"`
+	NotesURL          string `json:"notes_url"`
+	NotesToken        string `json:"notes_token"`
+	NotesPublicURL    string `json:"notes_public_url"`
+	ProjectsMode      string `json:"projects_mode"`
+	ProjectsURL       string `json:"projects_url"`
+	ProjectsToken     string `json:"projects_token"`
+	ProjectsPublicURL string `json:"projects_public_url"`
+
 	// AI for drafting diagrams: Pocket AI through Core, or an
 	// OpenAI-compatible API with the person's own key.
 	AIProvider    string `json:"ai_provider"` // auto | pocket | openai

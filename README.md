@@ -49,6 +49,7 @@
 - **History**: a version is kept every ten minutes or so while you draw, and before anything is put back; look at the pictures and restore any one.
 - **Find things**: folders, stars, recently opened, and search by name and by the words *on* the drawing (sketch text, diagram labels, compressed draw.io pages included).
 - **AI** (Pocket AI or your own OpenAI-compatible key): describe a diagram and get one, ask for a change (“add a step for paying”), or fix one Mermaid cannot draw.
+- **In your notes and issues**: put a drawing into a Pocket Notes note (`/` → Drawing) or a Pocket Projects issue and it shows there as a picture that follows your edits; each drawing lists where it is used and can start a new note with itself.
 - **Copies in Pocket Files**: each drawing as its picture and its own file in a folder of yours, kept up to date a couple of minutes after you stop.
 - **Downloads**: SVG, PNG, or the `.excalidraw` / `.mmd` / `.drawio` file the original tools open.
 - **Imports**: `.excalidraw` drawings and `.excalidrawlib` libraries, `.drawio`/`.xml`, `.mmd`, Markdown with ```` ```mermaid ```` blocks, Mermaid Live links — drop many files at once. A full JSON export imports twice without duplicates.
@@ -68,7 +69,7 @@ or `docker compose up -d` with [docker-compose.yml](docker-compose.yml) (it has 
 
 ## With Pocket Core
 
-Set `CORE_URL` and `CORE_REGISTRATION_KEY` and Draw joins the box: people sign in with Pocket Core, copies go to each person's own Pocket Files through an app link (nothing to paste), and diagrams are drafted by Pocket AI. Other Pocket apps can see your drawings (`drawings:read`: Pocket Day's journal, dashboards) or add some (`drawings:write`: a diagram Pocket AI wrote); an app may change or remove only what it added. Events on the bus: `draw.created`, `draw.edited`, `draw.deleted`. Without Core the Files connection can be made directly with a URL and a token; the Core-only choices stay visible, greyed out.
+Set `CORE_URL` and `CORE_REGISTRATION_KEY` and Draw joins the box: people sign in with Pocket Core, copies go to each person's own Pocket Files through an app link (nothing to paste), notes and issues show drawings inline (and Draw lists where each one is used, via `notes:read` / `projects:read`), and diagrams are drafted by Pocket AI. Other Pocket apps can see your drawings (`drawings:read`: Pocket Day's journal, dashboards) or add some (`drawings:write`: a diagram Pocket AI wrote); an app may change or remove only what it added. Events on the bus: `draw.created`, `draw.edited`, `draw.deleted`. Without Core the Files connection can be made directly with a URL and a token; the Core-only choices stay visible, greyed out.
 
 ## Develop
 
