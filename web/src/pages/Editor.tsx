@@ -3,7 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError, V1 } from '../lib/api'
 import { useApp } from '../lib/app-context'
-import { announce, fileBase, KINDS, saveBlob, svgToPng } from '../lib/draw'
+import { announce, fileBase, KINDS, mermaidPicture, saveBlob, sketchPicture, svgToPng } from '../lib/draw'
 import { ago, fmtDateTime } from '../lib/format'
 import type { Drawing, Version } from '../lib/types'
 import { Icon } from '../components/icons'
@@ -170,7 +170,22 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
     saved: ['Saved', 'check'], waiting: ['Saving…', ''], saving: ['Saving…', ''], error: ['Not saved — trying again', 'alert'], conflict: ['Changed elsewhere', 'alert'],
   }
   const [label, icon] = status[saver.state]
-  const props: EditorProps = { data: initial.data || '', title: d.title, dark, settings: settings!, onChange }
+  // A drawing that has no picture yet, or an old one (made with its content by AI, a template, an import or
+  // another app, and never edited here), gets one now: notes and issues that show it need it.
+  const stale = !initial.has_preview || initial.preview_rev < initial.rev
+  const keepPicture = useCallback((svg: string) => {
+    if (!svg) return
+    api.put<Drawing>(`${V1}/drawings/${initial.id}`, { preview: svg, preview_rev: initial.rev })
+      .then(() => setD(c => ({ ...c, has_preview: true, preview_rev: Math.max(c.preview_rev, initial.rev) })))
+      .catch(() => { /* the next save brings one */ })
+  }, [initial.id, initial.rev])
+  useEffect(() => {
+    if (!stale || initial.kind === 'drawio') return
+    const data = initial.data || ''
+    const make = initial.kind === 'sketch' ? sketchPicture(data) : data.trim() ? mermaidPicture(data, { theme: settings?.mermaid_theme || 'auto', look: settings?.mermaid_look || 'classic' }) : Promise.resolve('')
+    make.then(keepPicture).catch(() => { /* a diagram with a mistake keeps its placeholder until it draws */ })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const props: EditorProps = { data: initial.data || '', title: d.title, dark, settings: settings!, onChange, onPicture: stale && initial.kind === 'drawio' ? keepPicture : undefined }
   void themeMode
   return (
     <div className={`ed-page k-${d.kind}`}>

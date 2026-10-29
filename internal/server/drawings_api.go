@@ -210,6 +210,9 @@ func (s *Server) newDrawing(ctx context.Context, uid int64, in drawingIn, source
 	if in.Data == "" && in.Kind == store.KindSketch {
 		in.Data = blankScene
 	}
+	if strings.TrimSpace(in.Data) == "" && in.Kind == store.KindMermaid {
+		in.Data = starterMermaid // something to see (and a picture) from the start
+	}
 	prev, ok := cleanPreview(in.Preview)
 	if !ok {
 		prev = ""

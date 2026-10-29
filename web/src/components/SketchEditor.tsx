@@ -16,6 +16,8 @@ export interface EditorProps {
   settings: Settings
   /** Called on every real change: how to get the content and its picture when it is saved. */
   onChange: (getData: () => string, makePreview: () => Promise<string>) => void
+  /** The saved picture is missing or older than the drawing: the editor hands one over once it has it. */
+  onPicture?: (svg: string) => void
 }
 
 export default function SketchEditor({ data, title, dark, settings, onChange }: EditorProps) {

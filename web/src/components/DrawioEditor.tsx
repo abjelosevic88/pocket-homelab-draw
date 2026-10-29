@@ -6,10 +6,11 @@ import { Spinner } from './ui'
 import { DrawioHelp } from './DrawioHelp'
 import type { EditorProps } from './SketchEditor'
 
-export default function DrawioEditor({ data, title, dark, settings, onChange }: EditorProps) {
+export default function DrawioEditor({ data, title, dark, settings, onChange, onPicture }: EditorProps) {
   const frame = useRef<HTMLIFrameElement>(null)
   const last = useRef(data)
   const pending = useRef<((svg: string) => void)[]>([])
+  const wantPicture = useRef(!!onPicture && !!data.trim())
   const [ready, setReady] = useState(false)
   const base = (settings.drawio_url || '').replace(/\/+$/, '')
   const origin = (() => { try { return new URL(base).origin } catch { return '' } })()
@@ -26,6 +27,14 @@ export default function DrawioEditor({ data, title, dark, settings, onChange }: 
         case 'init':
           post({ action: 'load', xml: last.current || '', autosave: 1, title })
           setReady(true)
+          // no picture of this diagram is kept yet: ask draw.io for one once it has drawn it
+          if (wantPicture.current) {
+            wantPicture.current = false
+            window.setTimeout(() => {
+              pending.current.push(svg => onPicture?.(svg))
+              post({ action: 'export', format: 'svg', background: '#ffffff', spinKey: '' })
+            }, 1500)
+          }
           break
         case 'autosave':
         case 'save': {
