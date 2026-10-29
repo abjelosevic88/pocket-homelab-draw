@@ -55,7 +55,8 @@
 
 .dr-welcome { max-width: 760px; margin: 24px auto; text-align: center; }
 .dr-welcome h3 { font-size: 20px; margin-bottom: 4px; }
-.dr-welcome .kind-cards { margin-top: 20px; text-align: left; }
+.dr-welcome .kind-cards { margin-top: 20px; }
+.dr-welcome .kind-card { align-items: center; text-align: center; }
 
 /* ---- kind cards (new drawing, welcome) ---- */
 .kind-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -155,6 +156,7 @@
   .dr-row-meta { display: none; }
   .kind-cards { grid-template-columns: 1fr; }
   .kind-card { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 12px; }
+  .dr-welcome .kind-card { justify-content: center; }
   .kind-card .kind-blurb { flex-basis: 100%; }
 }
 
