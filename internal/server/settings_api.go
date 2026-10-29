@@ -51,7 +51,7 @@ func (s *Server) publicSettings(ctx context.Context, u *store.User, st store.Set
 		out[a.slug+"_configured"] = via != ""
 		_, _, _, public := connSettings(st, a)
 		if public == "" && via != "" {
-			public = s.resolveSibling(ctx, a.slug)
+			public = s.resolvePublic(ctx, a.slug)
 		}
 		out[a.slug+"_open_url"] = public
 	}

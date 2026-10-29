@@ -73,7 +73,7 @@ func (s *Server) copyToFiles(ctx context.Context, cl *clients, id int64) (string
 func (s *Server) filesOpenURL(ctx context.Context, u *store.User, st store.Settings, target string) string {
 	public := st.FilesPublicURL
 	if public == "" {
-		public = s.resolveSibling(ctx, appFiles.slug)
+		public = s.resolvePublic(ctx, appFiles.slug)
 	}
 	if public == "" || target == "" {
 		return ""

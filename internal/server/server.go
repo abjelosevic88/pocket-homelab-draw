@@ -45,8 +45,9 @@ type Server struct {
 }
 
 type resolvedURL struct {
-	url string
-	at  time.Time
+	url    string
+	public string
+	at     time.Time
 }
 
 // New creates a server.
@@ -279,25 +280,36 @@ func (s *Server) registerWithCore(ctx context.Context) error {
 	return nil
 }
 
-// resolveSibling asks Core where a sibling app lives (cached a minute).
+// resolveSibling asks Core where a sibling app lives (cached a minute):
+// the address this server reaches it at.
 func (s *Server) resolveSibling(ctx context.Context, slug string) string {
+	return s.resolve(ctx, slug).url
+}
+
+// resolvePublic is the address people open a sibling app at.
+func (s *Server) resolvePublic(ctx context.Context, slug string) string {
+	r := s.resolve(ctx, slug)
+	return firstNonEmpty(r.public, r.url)
+}
+
+func (s *Server) resolve(ctx context.Context, slug string) resolvedURL {
 	if !s.core.Configured() {
-		return ""
+		return resolvedURL{}
 	}
 	s.coreMu.Lock()
 	if r, ok := s.resolved[slug]; ok && time.Since(r.at) < time.Minute {
 		s.coreMu.Unlock()
-		return r.url
+		return r
 	}
 	s.coreMu.Unlock()
-	url := ""
+	r := resolvedURL{at: time.Now()}
 	if res, err := s.core.Resolve(ctx, slug); err == nil {
-		url = res.URL
+		r.url, r.public = res.URL, res.PublicURL
 	}
 	s.coreMu.Lock()
-	s.resolved[slug] = resolvedURL{url: url, at: time.Now()}
+	s.resolved[slug] = r
 	s.coreMu.Unlock()
-	return url
+	return r
 }
 
 // coreStatus summarises the Pocket Core link for the About page.
