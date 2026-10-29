@@ -1,0 +1,23 @@
+[Unit]
+Description=Pocket Draw — sketches and diagrams
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pocket-draw
+Group=pocket-draw
+ExecStart=/usr/local/bin/pocket-draw
+Environment=DATA_DIR=/var/lib/pocket-draw
+Environment=PORT=8080
+Environment=BASE_URL=https://draw.example.com
+Environment=SECURE_COOKIES=true
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pocket-draw
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
