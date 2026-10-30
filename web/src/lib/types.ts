@@ -33,10 +33,17 @@ export interface Drawing {
   files_path: string; files_rev: number; files_error: string
   opened_at: string; edited_at: string; trashed_at: string; created_at: string; updated_at: string
   folder_name: string; has_preview: boolean; versions: number
+  /** how I may use it: mine, or shared with me to edit or to view */
+  access?: Access; owner_name?: string; shares?: number
 }
+
+export type Access = 'owner' | 'edit' | 'view'
+
+export interface Share { user_id: number; name: string; email: string; role: 'edit' | 'view'; created_at: string; here?: boolean }
+export interface Person { id: number; name: string; email: string }
 
 export interface Version { id: number; drawing_id: number; rev: number; title: string; data?: string; bytes: number; reason: 'edit' | 'restore' | 'import'; created_at: string; has_preview: boolean }
 
-export interface Counts { all: number; starred: number; recent: number; trash: number; no_folder: number; bytes: number; kinds: Record<Kind, number> }
+export interface Counts { all: number; starred: number; recent: number; trash: number; no_folder: number; bytes: number; kinds: Record<Kind, number>; shared: number }
 
 export interface Dashboard { counts: Counts; folders: Folder[]; recent: Drawing[] }

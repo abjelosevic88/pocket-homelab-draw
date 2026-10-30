@@ -70,6 +70,34 @@ type Drawing struct {
 	FolderName string `json:"folder_name"`
 	HasPreview bool   `json:"has_preview"`
 	Versions   int    `json:"versions"`
+
+	// Sharing: how the person asking may use it (owner | edit | view), who
+	// owns it when that is someone else, and with how many it is shared.
+	Access    string `json:"access,omitempty"`
+	OwnerName string `json:"owner_name,omitempty"`
+	Shares    int    `json:"shares,omitempty"`
+}
+
+// Share roles.
+const (
+	ShareEdit = "edit"
+	ShareView = "view"
+)
+
+// Share is one person a drawing is shared with.
+type Share struct {
+	UserID    int64  `json:"user_id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	CreatedAt string `json:"created_at"`
+}
+
+// Person is someone on this box, as others see them when sharing.
+type Person struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 // Version is an earlier state of a drawing.

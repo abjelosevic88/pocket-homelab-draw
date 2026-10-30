@@ -119,7 +119,7 @@ func (s *Store) Backup(ctx context.Context, dst string) error {
 }
 
 // Tables lists the tables counted for metrics / the About page.
-var Tables = []string{"drawings", "folders", "versions", "users", "api_tokens"}
+var Tables = []string{"drawings", "folders", "versions", "shares", "users", "api_tokens"}
 
 // userTables are the content tables counted per user.
 var userTables = []string{"drawings", "folders", "versions", "api_tokens"}

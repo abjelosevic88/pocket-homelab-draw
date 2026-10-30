@@ -37,6 +37,7 @@ function App() {
         <Route path="/" element={<Drawings key="all" view="all" />} />
         <Route path="/recent" element={<Drawings key="recent" view="recent" />} />
         <Route path="/starred" element={<Drawings key="starred" view="starred" />} />
+        <Route path="/shared" element={<Drawings key="shared" view="shared" />} />
         <Route path="/trash" element={<Drawings key="trash" view="trash" />} />
         <Route path="/search" element={<Drawings key="search" view="search" />} />
         <Route path="/kind/:kind" element={<Drawings key="kind" view="kind" />} />

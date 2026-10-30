@@ -6,11 +6,13 @@ import { useApp } from '../lib/app-context'
 import { announce, fileBase, KINDS, mermaidPicture, saveBlob, sketchPicture, svgToPng } from '../lib/draw'
 import { ago, fmtDateTime } from '../lib/format'
 import type { Drawing, Version } from '../lib/types'
+import { LiveSession, useLive } from '../lib/live'
 import { Icon } from '../components/icons'
 import { AskButton } from '../components/AskButton'
 import { Confirm, Loading, type MenuItem, MenuButton, Modal, Spinner, download, useToast } from '../components/ui'
 import { MoveDialog } from '../components/Dialogs'
 import { UsedIn } from '../components/UsedIn'
+import { ShareDialog } from '../components/ShareDialog'
 import type { EditorProps } from '../components/SketchEditor'
 
 const SketchEditor = lazy(() => import('../components/SketchEditor'))
@@ -79,7 +81,7 @@ function useSaver(id: number, startRev: number, onSaved: (d: Drawing) => void) {
     return () => { window.removeEventListener('beforeunload', before); window.clearTimeout(timer.current); if (next.current) void run() }
   }, [run])
 
-  return { state, change, overwrite, flush: run, pending: () => !!next.current || inFlight.current, setRev: (r: number) => { rev.current = r } }
+  return { state, change, overwrite, flush: run, pending: () => !!next.current || inFlight.current, setRev: (r: number) => { rev.current = Math.max(rev.current, r) } }
 }
 
 export default function Editor() {
@@ -101,7 +103,7 @@ export default function Editor() {
 
 function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void }) {
   const navigate = useNavigate()
-  const { settings, themeMode } = useApp()
+  const { settings, themeMode, user } = useApp()
   const { toast } = useToast()
   const [d, setD] = useState(initial)
   const [title, setTitle] = useState(initial.title)
@@ -109,7 +111,10 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
   const [move, setMove] = useState(false)
   const [trash, setTrash] = useState(false)
   const [used, setUsed] = useState(false)
+  const [share, setShare] = useState(false)
   const preview = useRef<(() => Promise<string>) | null>(null)
+  const mine = (initial.access || 'owner') === 'owner'
+  const readOnly = initial.access === 'view'
   const dark = document.documentElement.dataset.theme === 'dark'
   useEffect(() => { document.title = `${d.title} · Pocket Draw`; return () => { document.title = settings?.title || 'Pocket Draw' } }, [d.title, settings?.title])
 
@@ -117,9 +122,53 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
   const saver = useSaver(initial.id, initial.rev, onSaved)
   const changeRef = useRef(saver.change)
   changeRef.current = saver.change
-  const onChange = useCallback<EditorProps['onChange']>((getData, makePreview) => { preview.current = makePreview; changeRef.current(getData, makePreview) }, [])
 
+  // A shared sketch is live: everyone with it open is in one session, and only the one the server names saves
+  // (the others' changes reach it as they are made). Shared drawings of the other kinds open as last saved.
+  const wantLive = d.kind === 'sketch' && (!mine || !!d.shares)
+  const [live, setLive] = useState<LiveSession | null>(null)
+  useEffect(() => {
+    if (!wantLive) return
+    const l = new LiveSession(initial.id)
+    setLive(l)
+    return () => { l.close(); setLive(null) }
+  }, [wantLive, initial.id])
+  const ls = useLive(live)
+  const waiting = useRef<{ getData: () => string; makePreview: () => Promise<string> } | null>(null) // a change the saver has not saved yet
+  const [elsewhere, setElsewhere] = useState(false)
+  const liveRef = useRef(live)
+  liveRef.current = live
+  const onChange = useCallback<EditorProps['onChange']>((getData, makePreview) => {
+    preview.current = makePreview
+    if (readOnly) return
+    const l = liveRef.current
+    if (l && !l.saves) { waiting.current = { getData, makePreview }; setElsewhere(true); return }
+    changeRef.current(getData, makePreview)
+  }, [readOnly])
+  const saves = !live || live.saves
+  useEffect(() => { // this window became the saver: what is not saved yet is saved from here
+    if (saves && waiting.current && !readOnly) { const w = waiting.current; waiting.current = null; setElsewhere(false); changeRef.current(w.getData, w.makePreview) }
+  }, [saves, readOnly, ls])
+  useEffect(() => {
+    if (!live) return
+    return live.on(m => {
+      if (m.t === 'saved') {
+        saver.setRev(m.rev)
+        setD(c => ({ ...c, rev: Math.max(c.rev, m.rev) }))
+        if (!live.saves) { waiting.current = null; setElsewhere(false) }
+      }
+      if (m.t === 'reload') { toast('An earlier version was put back'); reload() }
+      if (m.t === 'bye' && live.ended) {
+        if (live.ended === 'role') { reload(); return }
+        toast(live.ended === 'trashed' ? 'This drawing was moved to the trash by its owner' : 'This drawing is no longer shared with you', 'err')
+        navigate('/shared')
+      }
+    })
+  }, [live]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onShares = useCallback((n: number) => setD(c => c.shares === n ? c : { ...c, shares: n }), [])
   const saveTitle = async () => {
+    if (!mine) return
     const t = title.trim() || d.title
     setTitle(t)
     if (t === d.title) return
@@ -151,7 +200,18 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
     try { const x = await api.post<Drawing>(`${V1}/drawings/${d.id}/duplicate`); announce(); navigate(`/d/${x.id}`) } catch (e) { toast((e as Error).message, 'err') }
   }
   const ext = d.kind === 'sketch' ? '.excalidraw' : d.kind === 'mermaid' ? '.mmd' : '.drawio'
-  const menu = (): MenuItem[] => [
+  const leave = async () => {
+    try { await api.del(`${V1}/drawings/${d.id}/shares/${user?.id ?? 0}`); announce(); navigate('/shared') } catch (e) { toast((e as Error).message, 'err') }
+  }
+  const sharedMenu = (): MenuItem[] => [
+    { heading: 'Download' },
+    { label: 'Picture (SVG)', icon: 'download', onSelect: exportSVG },
+    { label: 'Picture (PNG)', icon: 'download', onSelect: exportPNG },
+    { label: `File for ${KINDS[d.kind].what} (${ext})`, icon: 'file', onSelect: () => download(`${V1}/drawings/${d.id}/file`) },
+    ...(user ? ['sep' as const, { label: 'Remove from Shared with me', icon: 'x', danger: true, onSelect: () => void leave() }] : []),
+  ]
+  const menu = (): MenuItem[] => !mine ? sharedMenu() : [
+    { label: d.shares ? `Shared with ${d.shares}…` : 'Share…', icon: 'users', onSelect: () => setShare(true) },
     { label: 'History…', icon: 'history', onSelect: () => setHistory(true), hint: d.versions ? String(d.versions) : undefined },
     { label: 'Used in notes and issues…', icon: 'link', onSelect: () => setUsed(true) },
     { label: 'Move to a folder…', icon: 'folder', onSelect: () => setMove(true), hint: d.folder_name || undefined },
@@ -169,7 +229,8 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
   const status: Record<SaveState, [string, string]> = {
     saved: ['Saved', 'check'], waiting: ['Saving…', ''], saving: ['Saving…', ''], error: ['Not saved — trying again', 'alert'], conflict: ['Changed elsewhere', 'alert'],
   }
-  const [label, icon] = status[saver.state]
+  const shown: SaveState = saves ? saver.state : elsewhere ? 'waiting' : 'saved'
+  const [label, icon] = readOnly ? ['View only', 'eye'] : status[shown]
   // A drawing that has no picture yet, or an old one (made with its content by AI, a template, an import or
   // another app, and never edited here), gets one now: notes and issues that show it need it.
   const stale = !initial.has_preview || initial.preview_rev < initial.rev
@@ -180,24 +241,27 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
       .catch(() => { /* the next save brings one */ })
   }, [initial.id, initial.rev])
   useEffect(() => {
-    if (!stale || initial.kind === 'drawio') return
+    if (!stale || initial.kind === 'drawio' || readOnly) return
     const data = initial.data || ''
     const make = initial.kind === 'sketch' ? sketchPicture(data) : data.trim() ? mermaidPicture(data, { theme: settings?.mermaid_theme || 'auto', look: settings?.mermaid_look || 'classic' }) : Promise.resolve('')
     make.then(keepPicture).catch(() => { /* a diagram with a mistake keeps its placeholder until it draws */ })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  const props: EditorProps = { data: initial.data || '', title: d.title, dark, settings: settings!, onChange, onPicture: stale && initial.kind === 'drawio' ? keepPicture : undefined }
+  const props: EditorProps = { data: initial.data || '', title: d.title, dark, settings: settings!, onChange, onPicture: stale && initial.kind === 'drawio' && !readOnly ? keepPicture : undefined, live, readOnly }
   void themeMode
   return (
     <div className={`ed-page k-${d.kind}`}>
       <header className="ed-head">
         <button type="button" className="btn ghost icon-only" onClick={back} aria-label="Back to the drawings" title="Back to the drawings"><Icon name="chevron-left" size={18} /></button>
         <span className={`ed-kind k-${d.kind}`} title={KINDS[d.kind].label}><Icon name={KINDS[d.kind].icon} size={15} /></span>
-        <input className="ed-title" value={title} onChange={e => setTitle(e.target.value)} onBlur={saveTitle} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setTitle(d.title); (e.target as HTMLInputElement).blur() } }} aria-label="Name" maxLength={200} />
+        <input className="ed-title" readOnly={!mine} value={title} onChange={e => setTitle(e.target.value)} onBlur={saveTitle} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setTitle(d.title); (e.target as HTMLInputElement).blur() } }} aria-label="Name" maxLength={200} />
         <span className={`ed-status s-${saver.state}`} role="status" aria-live="polite">{icon ? <Icon name={icon} size={13} /> : <Spinner size={11} />}<span>{label}</span></span>
+        {!mine && <span className="ed-shared" title={`Shared with you by ${d.owner_name}`}><Icon name="users" size={13} /><span>Shared by {d.owner_name} · {readOnly ? 'view only' : 'you can edit'}</span></span>}
         <span className="spacer" />
-        <button type="button" className={`btn ghost icon-only star-btn ${d.starred ? 'on' : ''}`} onClick={star} aria-pressed={d.starred} aria-label={d.starred ? 'Remove the star' : 'Star'} title={d.starred ? 'Remove the star' : 'Star'}><Icon name="star" size={17} /></button>
-        <button type="button" className="btn ghost icon-only ed-hide-s" onClick={() => setUsed(true)} aria-label="Used in" title="Used in notes and issues"><Icon name="link" size={17} /></button>
-        <button type="button" className="btn ghost icon-only ed-hide-s" onClick={() => setHistory(true)} aria-label="History" title="History"><Icon name="history" size={17} /></button>
+        {live && !ls.connected && !live.ended && <span className="ed-offline" title="Reconnecting to the others…"><Icon name="alert" size={13} /><span>Offline</span></span>}
+        {mine && <button type="button" className={`btn ghost icon-only ${d.shares ? 'on' : ''}`} onClick={() => setShare(true)} aria-label="Share" title={d.shares ? `Shared with ${d.shares}` : 'Share'}><Icon name="users" size={17} /></button>}
+        {mine && <button type="button" className={`btn ghost icon-only star-btn ${d.starred ? 'on' : ''}`} onClick={star} aria-pressed={d.starred} aria-label={d.starred ? 'Remove the star' : 'Star'} title={d.starred ? 'Remove the star' : 'Star'}><Icon name="star" size={17} /></button>}
+        {mine && <button type="button" className="btn ghost icon-only ed-hide-s" onClick={() => setUsed(true)} aria-label="Used in" title="Used in notes and issues"><Icon name="link" size={17} /></button>}
+        {mine && <button type="button" className="btn ghost icon-only ed-hide-s" onClick={() => setHistory(true)} aria-label="History" title="History"><Icon name="history" size={17} /></button>}
         <MenuButton label="More" align="right" width={260} items={menu}><Icon name="more" size={17} /></MenuButton>
         <AskButton />
       </header>
@@ -215,6 +279,7 @@ function EditorBody({ initial, reload }: { initial: Drawing; reload: () => void 
       </div>
       {history && <HistorySheet drawing={d} onClose={() => setHistory(false)} onRestored={async () => { setHistory(false); if (saver.pending()) await saver.flush(); reload(); toast('The earlier version is back; what you had is in History') }} />}
       {used && <UsedIn drawing={d} onClose={() => setUsed(false)} />}
+      {share && <ShareDialog drawing={d} onClose={() => setShare(false)} onCount={onShares} />}
       {move && <MoveDialog drawing={d} onClose={() => setMove(false)} onDone={x => { setMove(false); setD(c => ({ ...c, folder_id: x.folder_id, folder_name: x.folder_name })) }} />}
       {trash && <Confirm title={`Move “${d.title}” to the trash?`} message={`It stays in the trash for ${settings?.trash_days || 30} days; you can put it back from there.`} confirmLabel="Move to trash" onCancel={() => setTrash(false)}
         onConfirm={async () => { setTrash(false); if (saver.pending()) await saver.flush(); await api.del(`${V1}/drawings/${d.id}`); announce(); navigate('/') }} />}

@@ -53,8 +53,9 @@
 - **Copies in Pocket Files**: each drawing as its picture and its own file in a folder of yours, kept up to date a couple of minutes after you stop.
 - **Downloads**: SVG, PNG, or the `.excalidraw` / `.mmd` / `.drawio` file the original tools open.
 - **Imports**: `.excalidraw` drawings and `.excalidrawlib` libraries, `.drawio`/`.xml`, `.mmd`, Markdown with ```` ```mermaid ```` blocks, Mermaid Live links — drop many files at once. A full JSON export imports twice without duplicates.
-- **Self-contained**: Excalidraw's fonts are served by the app; no collaboration server, no calls out (draw.io only from the address you set).
-- **Everyone their own**: each person has their own drawings, folders, library, settings and connections; admins see no one else's.
+- **Draw together**: share a drawing with other people on the box, to edit or only to view; it shows up under *Shared with me*. A shared sketch is live: everyone who has it open sees the others' pointers, selections and changes as they happen.
+- **Self-contained**: Excalidraw's fonts are served by the app and live sessions run through the app itself; no collaboration server, no calls out (draw.io only from the address you set).
+- **Everyone their own**: each person has their own drawings, folders, library, settings and connections; admins see no one else's. Only what someone shares is seen by those they share it with.
 
 ## Run it
 

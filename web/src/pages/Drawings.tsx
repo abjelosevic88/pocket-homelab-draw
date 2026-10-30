@@ -1,4 +1,4 @@
-// The drawings: all of them, recent, starred, one kind, one folder, search results or the trash — as cards or a list.
+// The drawings: all of them, recent, starred, shared with me, one kind, one folder, search results or the trash — as cards or a list.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, V1 } from '../lib/api'
@@ -13,15 +13,15 @@ import { useCrumb, useDraw } from '../components/Layout'
 import { FolderDialog, MoveDialog, RenameDialog } from '../components/Dialogs'
 import { DrawioHelp } from '../components/DrawioHelp'
 
-export type View = 'all' | 'recent' | 'starred' | 'trash' | 'kind' | 'folder' | 'search'
+export type View = 'all' | 'recent' | 'starred' | 'shared' | 'trash' | 'kind' | 'folder' | 'search'
 
-const TITLES: Record<string, string> = { all: 'All drawings', recent: 'Recent', starred: 'Starred', trash: 'Trash', search: 'Search' }
+const TITLES: Record<string, string> = { all: 'All drawings', recent: 'Recent', starred: 'Starred', shared: 'Shared with me', trash: 'Trash', search: 'Search' }
 
 export default function Drawings({ view }: { view: View }) {
   const { id: param, kind: kindParam } = useParams()
   const [sp, setSp] = useSearchParams()
   const navigate = useNavigate()
-  const { settings, setSettings } = useApp()
+  const { settings, setSettings, user } = useApp()
   const { folders, counts, newDrawing, importFiles, reload: reloadCounts } = useDraw()
   const { toast } = useToast()
   const [q, setQ] = useState(sp.get('q') || '')
@@ -48,7 +48,7 @@ export default function Drawings({ view }: { view: View }) {
 
   const url = useMemo(() => {
     const p = new URLSearchParams({ limit: String(limit), sort })
-    if (view === 'recent' || view === 'starred' || view === 'trash') p.set('view', view)
+    if (view === 'recent' || view === 'starred' || view === 'shared' || view === 'trash') p.set('view', view)
     if (kind) p.set('kind', kind)
     if (view === 'folder' && param) p.set('folder', param)
     if (dq) p.set('q', dq)
@@ -81,7 +81,12 @@ export default function Drawings({ view }: { view: View }) {
     try { setSettings(await api.put<Settings>(`${V1}/settings`, p)) } catch { /* the view still changed here */ }
   }
 
-  const menu = (d: Drawing): MenuItem[] => view === 'trash' ? [
+  const menu = (d: Drawing): MenuItem[] => d.access && d.access !== 'owner' ? [
+    { label: 'Open', icon: 'edit', onSelect: () => navigate(`/d/${d.id}`) },
+    { label: `Download the ${d.kind === 'sketch' ? '.excalidraw' : d.kind === 'mermaid' ? '.mmd' : '.drawio'} file`, icon: 'download', onSelect: () => download(`${V1}/drawings/${d.id}/file`) },
+    'sep',
+    { label: 'Remove from Shared with me', icon: 'x', danger: true, onSelect: () => act(() => api.del(`${V1}/drawings/${d.id}/shares/${user?.id ?? 0}`), 'Removed') },
+  ] : view === 'trash' ? [
     { label: 'Put back', icon: 'undo', onSelect: () => act(() => api.post(`${V1}/drawings/${d.id}/restore`), 'Put back') },
     'sep',
     { label: 'Delete for good…', icon: 'trash', danger: true, onSelect: () => setForever(d) },
@@ -122,6 +127,7 @@ export default function Drawings({ view }: { view: View }) {
     switch (view) {
       case 'trash': return <Empty icon="trash" title="The trash is empty">Drawings you delete wait here for {settings?.trash_days ? plural(settings.trash_days, 'day') : 'you'} before they go for good.</Empty>
       case 'starred': return <Empty icon="star" title="No starred drawings">Star the ones you open often; they wait here.</Empty>
+      case 'shared': return <Empty icon="users" title="Nothing shared with you">When someone here shares a drawing with you, it shows up here.</Empty>
       case 'recent': return <Empty icon="clock" title="Nothing opened yet">The drawings you open show up here, newest first.</Empty>
       case 'folder': return <Empty icon="folder" title="This folder is empty"><button type="button" className="btn primary sm mt-s" onClick={() => newDrawing('ask', folder?.id ?? null)}><Icon name="plus" size={14} />New drawing here</button></Empty>
       case 'kind': return <Empty icon={kind ? KINDS[kind].icon : 'grid'} title={`No ${kind ? KINDS[kind].plural.toLowerCase() : 'drawings'} yet`}><button type="button" className="btn primary sm mt-s" onClick={() => newDrawing(kind)}><Icon name="plus" size={14} />New {kind ? KINDS[kind].label.toLowerCase() : 'drawing'}</button></Empty>
@@ -195,7 +201,9 @@ function Thumb({ d }: { d: Drawing }) {
 }
 
 function meta(d: Drawing, trash: boolean) {
-  return trash ? `Deleted ${since(d.trashed_at)}` : `${KINDS[d.kind].label} · ${since(d.edited_at)}`
+  if (trash) return `Deleted ${since(d.trashed_at)}`
+  const whose = d.owner_name ? ` · ${d.owner_name}${d.access === 'view' ? ', view only' : ''}` : d.shares ? ' · shared' : ''
+  return `${KINDS[d.kind].label} · ${since(d.edited_at)}${whose}`
 }
 
 interface ItemProps { d: Drawing; trash: boolean; onOpen: () => void; onStar: () => void; menu: () => MenuItem[] }
@@ -209,7 +217,7 @@ function Card({ d, trash, onOpen, onStar, menu }: ItemProps) {
           <div className="dr-card-title ellipsis" title={d.title}>{d.title}</div>
           <div className="dr-card-meta ellipsis">{meta(d, trash)}{d.folder_name ? ` · ${d.folder_name}` : ''}</div>
         </div>
-        {!trash && <button type="button" className={`btn ghost icon-only sm star-btn ${d.starred ? 'on' : ''}`} onClick={onStar} aria-label={d.starred ? 'Remove the star' : 'Star'} aria-pressed={d.starred}><Icon name="star" size={15} /></button>}
+        {!trash && !d.owner_name && <button type="button" className={`btn ghost icon-only sm star-btn ${d.starred ? 'on' : ''}`} onClick={onStar} aria-label={d.starred ? 'Remove the star' : 'Star'} aria-pressed={d.starred}><Icon name="star" size={15} /></button>}
         <MenuButton label="More" className="btn ghost icon-only sm" align="right" width={240} items={menu}><Icon name="more" size={16} /></MenuButton>
       </div>
       {d.source !== 'app' && d.source !== 'import' && <span className="dr-src" title={`Added by ${d.source}`}><Icon name="sparkles" size={12} /></span>}
@@ -225,7 +233,7 @@ function Row({ d, trash, onOpen, onStar, menu }: ItemProps) {
         <span className="grow ellipsis"><b>{d.title}</b>{d.folder_name && <span className="muted small"> · {d.folder_name}</span>}</span>
         <span className="muted small dr-row-meta">{meta(d, trash)}</span>
       </button>
-      {!trash && <button type="button" className={`btn ghost icon-only sm star-btn ${d.starred ? 'on' : ''}`} onClick={onStar} aria-label={d.starred ? 'Remove the star' : 'Star'} aria-pressed={d.starred}><Icon name="star" size={15} /></button>}
+      {!trash && !d.owner_name && <button type="button" className={`btn ghost icon-only sm star-btn ${d.starred ? 'on' : ''}`} onClick={onStar} aria-label={d.starred ? 'Remove the star' : 'Star'} aria-pressed={d.starred}><Icon name="star" size={15} /></button>}
       <MenuButton label="More" className="btn ghost icon-only sm" align="right" width={240} items={menu}><Icon name="more" size={16} /></MenuButton>
     </div>
   )
