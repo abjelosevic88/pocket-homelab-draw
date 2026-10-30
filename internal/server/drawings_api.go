@@ -105,6 +105,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "recent")
 		return
 	}
+	o.Shared = s.store.CountSharedWith(ctx, uid)
 	writeJSON(w, http.StatusOK, map[string]any{"counts": o, "folders": folders, "recent": recent})
 }
 
@@ -252,13 +253,27 @@ func (s *Server) newDrawing(ctx context.Context, uid int64, in drawingIn, source
 func (s *Server) handleGetDrawing(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	uid := actorID(ctx)
-	d, err := s.store.GetDrawing(ctx, uid, idParam(r, "id"))
+	owner, role, err := s.access(ctx, idParam(r, "id"))
 	if err != nil {
 		s.fail(w, err, "drawing")
 		return
 	}
-	if queryBool(r, "open") && linkApp(ctx) == "" {
-		s.store.MarkOpened(ctx, uid, d.ID)
+	d, err := s.store.GetDrawing(ctx, owner, idParam(r, "id"))
+	if err != nil {
+		s.fail(w, err, "drawing")
+		return
+	}
+	d.Access = role
+	if role == "owner" {
+		d.Shares = s.store.CountShares(ctx, d.ID)
+		if queryBool(r, "open") && linkApp(ctx) == "" {
+			s.store.MarkOpened(ctx, uid, d.ID)
+		}
+	} else { // someone else's: their folder and star are theirs
+		if o, err := s.store.GetUser(ctx, owner); err == nil {
+			d.OwnerName = store.DisplayName(o.Name, o.Email)
+		}
+		d.FolderID, d.FolderName, d.Starred = nil, "", false
 	}
 	writeJSON(w, http.StatusOK, d)
 }
@@ -268,8 +283,12 @@ func (s *Server) handleGetDrawing(w http.ResponseWriter, r *http.Request) {
 // another device) the answer is 409 with the current rev and nothing is lost.
 func (s *Server) handleUpdateDrawing(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	uid := actorID(ctx)
 	id := idParam(r, "id")
+	uid, role, err := s.access(ctx, id) // the owner's: a shared drawing is saved where it lives
+	if err != nil {
+		s.fail(w, err, "drawing")
+		return
+	}
 	cur, err := s.store.GetDrawing(ctx, uid, id)
 	if err != nil {
 		s.fail(w, err, "drawing")
@@ -284,6 +303,14 @@ func (s *Server) handleUpdateDrawing(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid json (or too large)")
 		return
+	}
+	if role != "owner" { // shared: the content and its picture, for those who may edit
+		for k := range keys {
+			if role != store.ShareEdit || (k != "data" && k != "rev" && k != "preview" && k != "preview_rev") {
+				writeErr(w, http.StatusForbidden, "only the owner can change that")
+				return
+			}
+		}
 	}
 	var p store.DrawingPatch
 	if keys["title"] {
@@ -330,6 +357,9 @@ func (s *Server) handleUpdateDrawing(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "save")
 		return
 	}
+	if keys["data"] {
+		s.live.tell(id, map[string]any{"t": "saved", "rev": d.Rev, "by": actorID(ctx)})
+	}
 	if kept {
 		s.publish(ctx, uid, "draw.edited", fmt.Sprintf("drawing:%d", d.ID), map[string]any{"id": d.ID, "title": d.Title, "kind": d.Kind, "rev": d.Rev, "url": drawingURL(s.cfg.BaseURL, d.ID)})
 	}
@@ -364,6 +394,7 @@ func (s *Server) handleDeleteDrawing(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "delete")
 		return
 	}
+	s.live.drop(d.ID, 0, "trashed")
 	s.publish(ctx, uid, "draw.deleted", fmt.Sprintf("drawing:%d", d.ID), map[string]any{"id": d.ID, "title": d.Title, "kind": d.Kind, "forever": queryBool(r, "forever")})
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -454,8 +485,12 @@ func serveSVG(w http.ResponseWriter, r *http.Request, svg, etag string) {
 
 func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	uid := actorID(ctx)
 	id := idParam(r, "id")
+	uid, _, err := s.access(ctx, id)
+	if err != nil {
+		s.fail(w, err, "preview")
+		return
+	}
 	svg, rev, err := s.store.DrawingPreview(ctx, uid, id)
 	if err != nil {
 		s.fail(w, err, "preview")
@@ -505,7 +540,12 @@ func safeName(t, fallback string) string {
 
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	d, err := s.store.GetDrawing(ctx, actorID(ctx), idParam(r, "id"))
+	owner, _, err := s.access(ctx, idParam(r, "id"))
+	if err != nil {
+		s.fail(w, err, "drawing")
+		return
+	}
+	d, err := s.store.GetDrawing(ctx, owner, idParam(r, "id"))
 	if err != nil {
 		s.fail(w, err, "drawing")
 		return
@@ -596,6 +636,7 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err, "restore")
 		return
 	}
+	s.live.tell(d.ID, map[string]any{"t": "reload", "rev": d.Rev})
 	s.publish(ctx, uid, "draw.edited", fmt.Sprintf("drawing:%d", d.ID), map[string]any{"id": d.ID, "title": d.Title, "kind": d.Kind, "rev": d.Rev, "restored": true, "url": drawingURL(s.cfg.BaseURL, d.ID)})
 	writeJSON(w, http.StatusOK, d)
 }

@@ -1,6 +1,6 @@
 # API
 
-JSON over HTTP under `/api/v1`. Authenticate with the session cookie, a personal token (`Authorization: Bearer pdw_…`, Settings → API & tokens), a Pocket Core token, or a Pocket Core app link (`pcx_…`, scopes below). Errors are `{"error": "…"}`. Everything is per person: another person's ids answer 404.
+JSON over HTTP under `/api/v1`. Authenticate with the session cookie, a personal token (`Authorization: Bearer pdw_…`, Settings → API & tokens), a Pocket Core token, or a Pocket Core app link (`pcx_…`, scopes below). Errors are `{"error": "…"}`. Everything is per person: another person's ids answer 404, unless that drawing is shared with you (below).
 
 ## Drawings
 
@@ -8,9 +8,9 @@ A drawing has a `kind`: `sketch` (an Excalidraw scene, JSON), `mermaid` (Mermaid
 
 | | |
 |---|---|
-| `GET /drawings?view=recent\|starred\|trash&kind&folder&q&sort=edited\|created\|title&limit&offset` | `{drawings, total}`. `folder=none` = not in a folder. `q` matches the name, the folder and the words on the drawing |
+| `GET /drawings?view=recent\|starred\|shared\|trash&kind&folder&q&sort=edited\|created\|title&limit&offset` | `{drawings, total}`. `folder=none` = not in a folder. `q` matches the name, the folder and the words on the drawing |
 | `POST /drawings` | `{kind, title?, data?, preview?, folder_id? \| folder? (a name, made when missing), starred?}` → 201 |
-| `GET /drawings/{id}` | One drawing with `data`. `?open=1` counts as opening it (Recent) |
+| `GET /drawings/{id}` | One drawing with `data`. `?open=1` counts as opening it (Recent). `access` is `owner`, `edit` or `view`; a shared one also has `owner_name`, your own one `shares` (how many) |
 | `PUT /drawings/{id}` | Any of `{title, folder_id, starred, data, preview, preview_rev}`. With `data` send `rev` (the rev it was made on): an older one answers 409 `{error, rev}` and nothing is lost |
 | `DELETE /drawings/{id}` | To the trash; `?forever=1` removes a trashed one for good |
 | `POST /drawings/{id}/restore` · `/duplicate` | Out of the trash · a copy |
@@ -22,13 +22,25 @@ A drawing has a `kind`: `sketch` (an Excalidraw scene, JSON), `mermaid` (Mermaid
 | `GET /drawings/{id}/versions/{vid}` · `/preview.svg` · `POST …/restore` | One version · its picture · put it back (the current state is kept as a version) |
 | `POST /trash/empty` | `{deleted}` |
 
+## Sharing and live sessions
+
+A drawing can be shared with other people on this box, to `edit` or to `view`. Those it is shared with open it, its picture and its file; with `edit` they may change its `data` and `preview` (nothing else). It is listed for them under `view=shared`. In the trash it is the owner's alone.
+
+| | |
+|---|---|
+| `GET /people` | Everyone else here `[{id, name, email}]`, to share with |
+| `GET /drawings/{id}/shares` | Who it is shared with `[{user_id, name, email, role, here}]` (the owner asks) |
+| `PUT /drawings/{id}/shares/{uid} {role: edit\|view}` | Share it, or change the role (the owner) |
+| `DELETE /drawings/{id}/shares/{uid}` | Stop sharing; the person themselves may also leave it |
+| `GET /live/{id}` (WebSocket, outside `/api/v1`) | A shared sketch, live. Send `pointer {pointer, button, selected}` and `scene {elements, files, full?, to?}` (editors); get `hello {you, peers, saver}`, `join`, `leave`, `saver`, `sync {to}`, `saved {rev}`, `reload`, `bye {reason}` and the others' messages with `from`. The server only relays; the `saver` (the owner when there, else the first editor) saves the merged drawing |
+
 ## Folders, library, overview
 
 | | |
 |---|---|
 | `GET /folders` · `POST /folders {name}` · `PUT /folders/{id} {name?, sort?}` · `DELETE /folders/{id}` | Deleting a folder keeps its drawings |
 | `GET /library` · `PUT /library {items}` | The person's Excalidraw library (shapes) |
-| `GET /dashboard` | `{counts: {all, starred, recent, trash, no_folder, bytes, kinds}, folders, recent}` — for Homepage |
+| `GET /dashboard` | `{counts: {all, starred, recent, trash, no_folder, bytes, kinds, shared}, folders, recent}` — for Homepage |
 | `GET /day/YYYY-MM-DD` | `{made, changed}` that day (what Pocket Day reads) |
 
 ## Import and export

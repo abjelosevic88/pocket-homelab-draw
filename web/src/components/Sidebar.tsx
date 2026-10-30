@@ -14,6 +14,7 @@ export function Sidebar({ onNavigate }: { onNavigate: () => void }) {
     { to: '/', label: 'All drawings', icon: 'grid', end: true, count: n(counts?.all) },
     { to: '/recent', label: 'Recent', icon: 'clock' },
     { to: '/starred', label: 'Starred', icon: 'star', count: n(counts?.starred) },
+    ...(counts?.shared ? [{ to: '/shared', label: 'Shared with me', icon: 'users', count: n(counts.shared) }] : []),
   ]
   return (
     <aside className="sidebar" aria-label="Drawings">

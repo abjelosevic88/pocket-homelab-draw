@@ -66,6 +66,10 @@ func (s *Server) Router() http.Handler {
 			r.Get("/drawings/{id}/preview.svg", s.handlePreview)
 			r.Get("/drawings/{id}/file", s.handleFile)
 			r.Get("/drawings/{id}/used", s.handleUsedIn)
+			r.Get("/drawings/{id}/shares", s.handleListShares)
+			r.Put("/drawings/{id}/shares/{uid}", s.handlePutShare)
+			r.Delete("/drawings/{id}/shares/{uid}", s.handleDeleteShare)
+			r.Get("/people", s.handlePeople)
 			r.Get("/drawings/{id}/versions", s.handleListVersions)
 			r.Get("/drawings/{id}/versions/{vid}", s.handleGetVersion)
 			r.Get("/drawings/{id}/versions/{vid}/preview.svg", s.handleVersionPreview)
@@ -113,6 +117,9 @@ func (s *Server) Router() http.Handler {
 	// (![…](…/d/12/picture.svg) in a note or an issue). Notes and Projects
 	// show it through their own proxy; a browser signed in here shows it too.
 	r.With(s.requireAuth).Get("/d/{id}/picture.svg", s.handlePreview)
+
+	// A shared sketch, live: a WebSocket, so outside /api/v1 and its timeout.
+	r.With(s.requireAuth).Get("/live/{id}", s.handleLive)
 
 	r.NotFound(s.handleSPA)
 	return r

@@ -33,7 +33,7 @@ func scanDrawing(row interface{ Scan(...any) error }, extra ...any) (*Drawing, e
 
 // DrawingFilter narrows a list.
 type DrawingFilter struct {
-	View     string // all | starred | recent | trash
+	View     string // all | starred | recent | trash | shared
 	Kind     string
 	FolderID int64 // -1 = not in a folder
 	Query    string
@@ -48,6 +48,11 @@ type DrawingFilter struct {
 func (s *Store) ListDrawings(ctx context.Context, uid int64, f DrawingFilter) ([]Drawing, int, error) {
 	where := []string{"d.user_id = ?"}
 	args := []any{uid}
+	var extra string
+	if f.View == "shared" { // others' drawings shared with this person
+		where[0] = "d.id IN (SELECT drawing_id FROM shares WHERE user_id = ?)"
+		extra = `, (SELECT role FROM shares WHERE drawing_id = d.id AND user_id = ?), (SELECT COALESCE(NULLIF(u.name, ''), u.email) FROM users u WHERE u.id = d.user_id)`
+	}
 	if f.View == "trash" {
 		where = append(where, "d.trashed_at != ''")
 	} else {
@@ -104,20 +109,59 @@ func (s *Store) ListDrawings(ctx context.Context, uid int64, f DrawingFilter) ([
 	if limit <= 0 || limit > 500 {
 		limit = 200
 	}
-	rows, err := s.DB.QueryContext(ctx, `SELECT `+drawingCols+from+` ORDER BY `+order+` LIMIT ? OFFSET ?`, append(args, limit, f.Offset)...)
+	qargs := args
+	if extra != "" {
+		qargs = append([]any{uid}, args...)
+	}
+	rows, err := s.DB.QueryContext(ctx, `SELECT `+drawingCols+extra+from+` ORDER BY `+order+` LIMIT ? OFFSET ?`, append(qargs, limit, f.Offset)...)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
 	out := []Drawing{}
 	for rows.Next() {
-		d, err := scanDrawing(rows)
+		var role, owner string
+		var dest []any
+		if extra != "" {
+			dest = []any{&role, &owner}
+		}
+		d, err := scanDrawing(rows, dest...)
 		if err != nil {
 			return nil, 0, err
 		}
+		if extra != "" {
+			d.Access, d.OwnerName, d.FolderName, d.Starred = role, owner, "", false
+		}
 		out = append(out, *d)
 	}
-	return out, total, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	if extra == "" && len(out) > 0 { // which of them are shared with someone
+		rows.Close()
+		ids := make([]any, len(out))
+		for i := range out {
+			ids[i] = out[i].ID
+		}
+		srows, err := s.DB.QueryContext(ctx, `SELECT drawing_id, COUNT(1) FROM shares WHERE drawing_id IN (?`+strings.Repeat(",?", len(ids)-1)+`) GROUP BY drawing_id`, ids...)
+		if err != nil {
+			return nil, 0, err
+		}
+		defer srows.Close()
+		n := map[int64]int{}
+		for srows.Next() {
+			var id int64
+			var c int
+			if err := srows.Scan(&id, &c); err != nil {
+				return nil, 0, err
+			}
+			n[id] = c
+		}
+		for i := range out {
+			out[i].Shares = n[out[i].ID]
+		}
+	}
+	return out, total, nil
 }
 
 // GetDrawing returns one drawing with its data.
@@ -605,6 +649,7 @@ type Overview struct {
 	Kinds    map[string]int `json:"kinds"`
 	NoFolder int            `json:"no_folder"`
 	Bytes    int64          `json:"bytes"`
+	Shared   int            `json:"shared"` // others' drawings shared with this person
 }
 
 // Overview counts one person's drawings.

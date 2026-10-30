@@ -42,6 +42,8 @@ type Server struct {
 	coreErr  string
 	resolved map[string]resolvedURL
 	modesMu  sync.Mutex // one connection-mode report at a time
+
+	live *liveHub // who has which shared sketch open
 }
 
 type resolvedURL struct {
@@ -54,7 +56,7 @@ type resolvedURL struct {
 func New(cfg *config.Config, st *store.Store, log *slog.Logger, webFS fs.FS) *Server {
 	return &Server{cfg: cfg, store: st, log: log, webFS: webFS, started: time.Now(), oidc: &oidcProvider{},
 		core:     core.New(cfg.CoreURL, core.Options{DB: st.DB, TokenFile: cfg.DataDir + "/core.token", UserAgent: cfg.UserAgent}),
-		resolved: map[string]resolvedURL{}}
+		resolved: map[string]resolvedURL{}, live: newLiveHub()}
 }
 
 // Bootstrap seeds the first admin (if configured), the owner's integration
@@ -253,7 +255,7 @@ func (s *Server) coreLoop(ctx context.Context) {
 }
 
 // eventTopics are what Draw publishes on the Core bus.
-var eventTopics = []string{"draw.created", "draw.edited", "draw.deleted"}
+var eventTopics = []string{"draw.created", "draw.edited", "draw.deleted", "draw.shared"}
 
 func (s *Server) registerWithCore(ctx context.Context) error {
 	m := core.Manifest{
