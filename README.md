@@ -45,6 +45,8 @@
 ## What it does
 
 - **Three kinds of drawing, one list**: sketches (Excalidraw: boxes, arrows, handwriting, pictures), text diagrams (Mermaid: flowcharts, sequences, mind maps, timelines, Gantt, pie, ER, state, journeys…) and diagrams (draw.io, opened from your own `jgraph/drawio` or diagrams.net). Each with a picture in the list.
+- **Sticky notes**, the way Miro has them: the note button (or <kbd>N</kbd>) puts a coloured note in the middle and you start typing; with a note selected the next one goes beside it; eight colours, and picking one recolours the selected notes. On a phone the button sits above the bottom bar.
+- **Shape libraries**: your own library is kept on the server; “Browse libraries” on libraries.excalidraw.com adds a library straight back into Draw.
 - **Saves by itself**: a moment after you stop. Every save says which version it was made on, so two tabs or a linked app never overwrite each other silently — you choose “Load the newer one” or “Keep mine”.
 - **History**: a version is kept every ten minutes or so while you draw, and before anything is put back; look at the pictures and restore any one.
 - **Find things**: folders, stars, recently opened, and search by name and by the words *on* the drawing (sketch text, diagram labels, compressed draw.io pages included).

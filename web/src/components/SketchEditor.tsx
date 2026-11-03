@@ -1,14 +1,17 @@
 // A sketch: Excalidraw, kept in this app (fonts served from here, no AI calls out). Shared, it is live: the
 // others' pointers and selections show, and changes travel through this app's own server as they are made.
-import { useEffect, useMemo, useRef } from 'react'
-import { CaptureUpdateAction, Excalidraw, MainMenu, WelcomeScreen, exportToSvg, getSceneVersion, reconcileElements, restore, restoreElements, serializeAsJSON } from '@excalidraw/excalidraw'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { CaptureUpdateAction, Excalidraw, MainMenu, WelcomeScreen, exportToSvg, getSceneVersion, reconcileElements, restore, restoreElements, serializeAsJSON, useHandleLibrary } from '@excalidraw/excalidraw'
 import '@excalidraw/excalidraw/index.css'
 import type { BinaryFileData, BinaryFiles, Collaborator, ExcalidrawImperativeAPI, LibraryItems, SocketId } from '@excalidraw/excalidraw/types'
+import type { LibraryPersistenceAdapter } from '@excalidraw/excalidraw/data/library'
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile'
 import { api, V1 } from '../lib/api'
 import { blankPicture } from '../lib/draw'
 import type { LiveMessage, LivePeer, LiveSession } from '../lib/live'
 import type { Settings } from '../lib/types'
+import { StickyTool } from './Sticky'
 
 const FONTS: Record<Settings['sketch_font'], number> = { hand: 5, normal: 6, code: 8 }
 
@@ -39,11 +42,18 @@ function colourID(uid: number): string {
 }
 const POINTER_EVERY = 40
 
+/** The person's library of shapes lives on the server; Excalidraw loads it, saves changes and adds libraries
+ *  picked on libraries.excalidraw.com ("Browse libraries" comes back here with #addLibrary=…). */
+const libraryOnServer: LibraryPersistenceAdapter = {
+  load: async () => ({ libraryItems: (await api.get<{ items: LibraryItems }>(`${V1}/library`)).items || [] }),
+  save: async ({ libraryItems }) => { await api.put(`${V1}/library`, { items: libraryItems }) },
+}
+
 export default function SketchEditor({ data, title, dark, settings, onChange, live, readOnly }: EditorProps) {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null)
+  const [excalidraw, setExcalidraw] = useState<ExcalidrawImperativeAPI | null>(null)
+  const hostRef = useRef<HTMLDivElement>(null)
   const lastKey = useRef('')
-  const libTimer = useRef(0)
-  const libLoaded = useRef(false)
   // live: the version of each element the others have (sent or received), the pictures they have, their pointers
   const known = useRef(new Map<string, number>())
   const knownFiles = useRef(new Set<string>())
@@ -135,21 +145,17 @@ export default function SketchEditor({ data, title, dark, settings, onChange, li
     }, SEND_EVERY)
   }
 
-  // the person's library of shapes lives on the server
-  useEffect(() => {
-    let stop = false
-    api.get<{ items: LibraryItems }>(`${V1}/library`).then(r => {
-      if (stop || !apiRef.current) return
-      void apiRef.current.updateLibrary({ libraryItems: r.items, merge: false, openLibraryMenu: false })
-      window.setTimeout(() => { libLoaded.current = true }, 500)
-    }).catch(() => { libLoaded.current = true })
-    return () => { stop = true }
-  }, [])
+  useHandleLibrary({ excalidrawAPI: excalidraw, adapter: libraryOnServer })
 
   return (
-    <div className="sketch-host">
+    <div className="sketch-host" ref={hostRef}>
       <Excalidraw
-        excalidrawAPI={a => { apiRef.current = a }}
+        excalidrawAPI={a => { apiRef.current = a; setExcalidraw(a) }}
+        libraryReturnUrl={window.location.origin + window.location.pathname}
+        renderTopRightUI={readOnly ? undefined : mobile => mobile
+          // the phone toolbar has no room: a round button above the bottom bar instead
+          ? (hostRef.current?.querySelector('.excalidraw') ? createPortal(<StickyTool api={excalidraw} host={hostRef} mobile />, hostRef.current.querySelector('.excalidraw')!) : null)
+          : <StickyTool api={excalidraw} host={hostRef} mobile={false} />}
         initialData={initial as never}
         theme={dark ? 'dark' : 'light'}
         name={title}
@@ -180,11 +186,6 @@ export default function SketchEditor({ data, title, dark, settings, onChange, li
               return new XMLSerializer().serializeToString(svg)
             },
           )
-        }}
-        onLibraryChange={items => {
-          if (!libLoaded.current) return
-          window.clearTimeout(libTimer.current)
-          libTimer.current = window.setTimeout(() => { void api.put(`${V1}/library`, { items }).catch(() => {}) }, 800)
         }}
       >
         <MainMenu>

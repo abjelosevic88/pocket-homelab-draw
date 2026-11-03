@@ -116,6 +116,20 @@
 .sketch-host { position: absolute; inset: 0; }
 .sketch-host .excalidraw { --color-primary: #d6336c; --color-primary-darker: #c2255c; --color-primary-darkest: #a61e4d; --color-primary-light: #fcc2d7; }
 .sketch-host .excalidraw.theme--dark { --color-primary: #f06595; --color-primary-darker: #f783ac; --color-primary-darkest: #faa2c1; --color-primary-light: #5c1f37; }
+/* sticky notes: Excalidraw-looking island in its top bar, colours drop down under it */
+.sticky-tool { position: relative; display: flex; align-items: center; gap: 1px; padding: 4px; border-radius: var(--border-radius-lg, 8px); background: var(--island-bg-color); box-shadow: var(--shadow-island); pointer-events: var(--ui-pointerEvents, all); }
+.sticky-tool.mobile { position: absolute; right: 12px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 4; border-radius: 999px; padding: 3px 4px 3px 6px; }
+.sticky-tool.mobile .sticky-add { width: 2.6rem; height: 2.6rem; border-radius: 999px; }
+.sticky-tool.mobile .sticky-colours { top: auto; bottom: calc(100% + 8px); grid-template-columns: repeat(4, 36px); }
+.sticky-tool.mobile .sticky-colours button { width: 36px; height: 36px; }
+.sticky-tool button { display: grid; place-items: center; border: 0; background: none; color: var(--icon-fill-color); cursor: pointer; border-radius: var(--border-radius-md, 6px); }
+.sticky-tool button:hover { background: var(--button-hover-bg); }
+.sticky-add { width: 2.25rem; height: 2.25rem; }
+.sticky-more { width: 1.25rem; height: 2.25rem; }
+.sticky-colours { position: absolute; top: calc(100% + 6px); right: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, 30px); gap: 6px; padding: 8px; border-radius: var(--border-radius-lg, 8px); background: var(--island-bg-color); box-shadow: var(--shadow-island); }
+.sticky-colours button { width: 30px; height: 30px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12); }
+.sticky-colours button:hover { filter: brightness(.95); background: inherit; }
+.sticky-colours button.on { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12), 0 0 0 2px var(--color-primary); }
 
 /* text diagrams */
 .mm-host { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(300px, 40%) 1fr; }
