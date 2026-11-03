@@ -7,19 +7,31 @@ import { flushSync } from 'react-dom'
 import { CaptureUpdateAction, convertToExcalidrawElements, newElementWith } from '@excalidraw/excalidraw'
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
 
+// Miro's sticky colours (the default yellow, blue, violet and pink taken from Miro itself)
 export const STICKY_COLOURS: { name: string; value: string }[] = [
-  { name: 'Yellow', value: '#fff9b1' },
-  { name: 'Orange', value: '#ffcf99' },
-  { name: 'Pink', value: '#ffcee0' },
-  { name: 'Violet', value: '#dccbf5' },
-  { name: 'Blue', value: '#b8d8fa' },
-  { name: 'Teal', value: '#b5ebe5' },
-  { name: 'Green', value: '#d5f692' },
+  { name: 'Yellow', value: '#ffdd33' },
+  { name: 'Light yellow', value: '#fff6b6' },
+  { name: 'Orange', value: '#ffb26b' },
+  { name: 'Red', value: '#ff9a92' },
+  { name: 'Pink', value: '#f7a7ff' },
+  { name: 'Violet', value: '#aba4ff' },
+  { name: 'Blue', value: '#85b8ff' },
+  { name: 'Light blue', value: '#c6dcff' },
+  { name: 'Teal', value: '#7fdbcf' },
+  { name: 'Green', value: '#a6e3a0' },
+  { name: 'Light green', value: '#d5f692' },
   { name: 'Grey', value: '#e6e6e6' },
 ]
-const COLOUR_KEY = 'pdw-sticky-colour'
+const COLOUR_KEY = 'pdw-sticky'
 const SIZE = 200
 const GAP = 24
+// the text: Miro's clean sans, as big as fits inside a 10% margin, never bigger than 16% of the note
+const FONT = 2 // Excalidraw's Helvetica
+const LINE_HEIGHT = 1.15
+const PAD = 0.1
+const MAX_FONT = 0.16
+const MIN_FONT = 6
+const TEXT_COLOUR = '#1e1e1e'
 
 type Api = ExcalidrawImperativeAPI
 type El = ReturnType<Api['getSceneElements']>[number]
@@ -50,7 +62,7 @@ export function addSticky(api: Api, host: HTMLElement | null, colour: string) {
   const [note] = convertToExcalidrawElements([{
     type: 'rectangle', x, y, width: SIZE, height: SIZE,
     backgroundColor: bg, fillStyle: 'solid', strokeColor: 'transparent', strokeWidth: 1, roughness: 0,
-    roundness: { type: 3 }, customData: { sticky: true },
+    roundness: null, customData: { sticky: true },
   }])
   api.setActiveTool({ type: 'selection' })
   const z = st.zoom.value
@@ -65,6 +77,100 @@ export function addSticky(api: Api, host: HTMLElement | null, colour: string) {
   })
   // Excalidraw starts typing into a selected shape on Enter; doing it in the same tap keeps the phone keyboard up
   host?.querySelector('.excalidraw')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+}
+
+let measurer: CanvasRenderingContext2D | null = null
+const fontString = (size: number) => `${size}px Helvetica, sans-serif, Segoe UI Emoji`
+
+/** Greedy word wrap; a word wider than the line is broken (said, so a bigger size can be refused for it). */
+function wrap(text: string, size: number, maxW: number): { lines: string[]; width: number; broke: boolean } {
+  measurer ||= document.createElement('canvas').getContext('2d')
+  const m = measurer!
+  m.font = fontString(size)
+  const w = (t: string) => m.measureText(t).width
+  const lines: string[] = []
+  let broke = false
+  for (const para of text.split('\n')) {
+    let line = ''
+    for (const word of para.split(/ +/)) {
+      const tryLine = line ? `${line} ${word}` : word
+      if (w(tryLine) <= maxW) { line = tryLine; continue }
+      if (line) lines.push(line)
+      if (w(word) <= maxW) { line = word; continue }
+      broke = true // character by character
+      line = ''
+      for (const ch of word) { if (line && w(line + ch) > maxW) { lines.push(line); line = ch } else line += ch }
+    }
+    lines.push(line)
+  }
+  return { lines, width: Math.max(0, ...lines.map(w)), broke }
+}
+
+/** The biggest size the text fits the note at, Miro style: few words big, many words small. */
+function layout(text: string, side: number) {
+  const inner = side * (1 - 2 * PAD)
+  let best = null as null | { size: number; lines: string[]; width: number; height: number }
+  for (let size = Math.max(MIN_FONT, Math.floor(side * MAX_FONT)); size >= MIN_FONT; size--) {
+    const r = wrap(text, size, inner)
+    const height = r.lines.length * size * LINE_HEIGHT
+    best = { size, lines: r.lines, width: r.width, height }
+    if (!r.broke && r.width <= inner && height <= inner) break
+  }
+  return best!
+}
+
+const fitted = new Map<string, string>()
+const fitKey = (c: El, t: El | undefined, editingId?: string) => t && t.type === 'text'
+  ? `${t.id === editingId}|${c.width}|${c.height}|${c.x}|${c.y}|${t.originalText}|${t.text}|${t.fontSize}|${t.fontFamily}|${t.x}|${t.y}|${t.isDeleted}`
+  : `${c.width}|${c.height}`
+
+/** Keeps the notes this person is working on (selected, or being typed into) square with their text fitted. Only
+ *  those: notes changed by others in a live session are fitted on their screens, so screens never argue. */
+export function fitStickies(api: Api): void {
+  const st = api.getAppState()
+  const editing = st.editingTextElement as (El & { containerId?: string | null }) | null
+  const all = api.getSceneElementsIncludingDeleted()
+  const byId = new Map(all.map(e => [e.id, e]))
+  const notes = all.filter(e => !e.isDeleted && isSticky(e) && (st.selectedElementIds[e.id] || editing?.containerId === e.id))
+  if (!notes.length) return
+  const changes = new Map<string, El>()
+  for (const c of notes) {
+    const tid = c.boundElements?.find(b => b.type === 'text')?.id
+    const t = tid ? byId.get(tid) : undefined
+    if (fitted.get(c.id) === fitKey(c, t, editing?.id)) continue
+    const side = c.width
+    let nc: El = c
+    if (c.height !== side || c.roundness) nc = newElementWith(c, { height: side, roundness: null })
+    if (t && t.type === 'text' && !t.isDeleted) {
+      const live = editing?.id === t.id
+      const text = t.originalText
+      const l = layout(text, side)
+      const h = Math.max(side, l.height / (1 - 2 * PAD))
+      if (nc.height !== h) nc = newElementWith(nc, { height: h })
+      const want = {
+        fontFamily: FONT, fontSize: l.size, lineHeight: LINE_HEIGHT as never, strokeColor: TEXT_COLOUR,
+        textAlign: 'center' as const, verticalAlign: 'middle' as const,
+        // while typing, Excalidraw lays the text out itself on every key; only the size and font are set then
+        ...(live ? {} : { text: l.lines.join('\n'), width: l.width, height: l.height, x: nc.x + (side - l.width) / 2, y: nc.y + (h - l.height) / 2 }),
+      }
+      const same = (Object.keys(want) as (keyof typeof want)[]).every(k => {
+        const a = (t as never)[k] as unknown, b = want[k] as unknown
+        return typeof a === 'number' && typeof b === 'number' ? Math.abs(a - b) < 0.01 : a === b
+      })
+      if (!same) changes.set(t.id, newElementWith(t, want as never))
+    }
+    if (nc !== c) changes.set(c.id, nc)
+  }
+  if (changes.size) {
+    api.updateScene({ elements: all.map(e => changes.get(e.id) || e), captureUpdate: CaptureUpdateAction.EVENTUALLY })
+  }
+  // remember what each note looks like once fitted, so it is measured again only when something about it changes
+  const now = new Map(api.getSceneElementsIncludingDeleted().map(e => [e.id, e]))
+  for (const c of notes) {
+    const nc = now.get(c.id)!
+    const tid = nc.boundElements?.find(b => b.type === 'text')?.id
+    fitted.set(c.id, fitKey(nc, tid ? now.get(tid) : undefined, editing?.id))
+  }
 }
 
 function recolour(api: Api, colour: string): boolean {

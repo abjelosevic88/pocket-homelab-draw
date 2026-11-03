@@ -11,7 +11,7 @@ import { api, V1 } from '../lib/api'
 import { blankPicture } from '../lib/draw'
 import type { LiveMessage, LivePeer, LiveSession } from '../lib/live'
 import type { Settings } from '../lib/types'
-import { StickyTool } from './Sticky'
+import { StickyTool, fitStickies } from './Sticky'
 
 const FONTS: Record<Settings['sketch_font'], number> = { hand: 5, normal: 6, code: 8 }
 
@@ -171,6 +171,7 @@ export default function SketchEditor({ data, title, dark, settings, onChange, li
         } : undefined}
         UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: null, export: { saveFileToDisk: true }, saveAsImage: true } }}
         onChange={(elements, appState, files) => {
+          if (!readOnly && apiRef.current) fitStickies(apiRef.current)
           sendChanges()
           const key = `${getSceneVersion(elements)}|${Object.keys(files).length}|${appState.viewBackgroundColor}|${appState.gridModeEnabled}`
           if (key === lastKey.current) return
