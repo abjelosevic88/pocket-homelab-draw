@@ -1,6 +1,6 @@
 <p align="center"><img src="web/public/favicon.svg" width="96" alt=""></p>
 <h1 align="center">Pocket Draw</h1>
-<p align="center">Sketches, diagrams and flowcharts in one place. Draw on a hand-drawn whiteboard (Excalidraw), write a few lines and see a flowchart, timeline or mind map drawn (Mermaid), or build a detailed diagram with shape libraries (draw.io) — each drawing kept with its history, in folders, searchable by the words on it. Describe a diagram and let AI draw it; keep a copy of everything in your files. Moving in is dropping your <code>.excalidraw</code>, <code>.drawio</code> and <code>.mmd</code> files on the page.<br>One Go binary, one SQLite file, one volume. Part of the Pocket apps; works on its own too.</p>
+<p align="center">Sketches, diagrams and flowcharts in one place. Draw on a hand-drawn whiteboard (Excalidraw), write a few lines and see a flowchart, timeline or mind map drawn (Mermaid), or build a detailed diagram with shape libraries (draw.io) — each drawing kept with its history, in folders, searchable by the words on it. Describe a diagram and let AI draw it; keep a copy of everything in your files. Moving in is dropping your <code>.excalidraw</code>, <code>.drawio</code> and <code>.mmd</code> files on the page.<br>Comes with its own draw.io, served by the app — or works with yours. Part of the Pocket apps; works on its own too.</p>
 <p align="center">
   <a href="https://github.com/abjelosevic88/pocket-homelab-draw/actions"><img src="https://github.com/abjelosevic88/pocket-homelab-draw/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://github.com/abjelosevic88/pocket-homelab-draw/pkgs/container/pocket-homelab-draw"><img src="https://img.shields.io/badge/ghcr.io-amd64%20%7C%20arm64%20%7C%20armv7-blue" alt="image"></a>
@@ -23,7 +23,7 @@
     <td width="50%"><img src="docs/screenshots/desktop-new.png" alt="The new drawing dialog with templates and an AI prompt"></td>
   </tr>
   <tr>
-    <td align="center"><sub>Diagrams: draw.io (your own server or diagrams.net), kept here.</sub></td>
+    <td align="center"><sub>Diagrams: draw.io (the one that comes with it, yours or diagrams.net), kept here.</sub></td>
     <td align="center"><sub>Start from a template, or describe it and let AI draw it.</sub></td>
   </tr>
   <tr>
@@ -44,7 +44,7 @@
 
 ## What it does
 
-- **Three kinds of drawing, one list**: sketches (Excalidraw: boxes, arrows, handwriting, pictures), text diagrams (Mermaid: flowcharts, sequences, mind maps, timelines, Gantt, pie, ER, state, journeys…) and diagrams (draw.io, opened from your own `jgraph/drawio` or diagrams.net). Each with a picture in the list.
+- **Three kinds of drawing, one list**: sketches (Excalidraw: boxes, arrows, handwriting, pictures), text diagrams (Mermaid: flowcharts, sequences, mind maps, timelines, Gantt, pie, ER, state, journeys…) and diagrams (draw.io: the one that comes with Pocket Draw, your own `jgraph/drawio`, or diagrams.net). Each with a picture in the list.
 - **Sticky notes**, the way Miro has them: square, flat Miro colours, clean text that sizes itself to fit (a word big, a sentence small). The note button (or <kbd>N</kbd>) puts one in the middle and you start typing; with a note selected the next one goes beside it; twelve colours, and picking one recolours the selected notes. On a phone the button sits above the bottom bar.
 - **Shape libraries**: your own library is kept on the server; “Browse libraries” on libraries.excalidraw.com adds a library straight back into Draw.
 - **Saves by itself**: a moment after you stop. Every save says which version it was made on, so two tabs or a linked app never overwrite each other silently — you choose “Load the newer one” or “Keep mine”.
@@ -61,6 +61,17 @@
 
 ## Run it
 
+With Pocket Core: **Apps → Install app → Pocket Draw**. Or with [docker-compose.yml](docker-compose.yml):
+
+```sh
+docker compose up -d
+```
+
+That starts the app and draw.io. draw.io has no port or address of its own: Pocket Draw serves it at `/drawio/` on
+its own address, so diagrams work with nothing else to set up and nothing loads from outside your server.
+
+Or as a single container, with the hosted draw.io (or your own `jgraph/drawio`, at an address the browser reaches):
+
 ```sh
 docker run -d --name pocket-draw -p 8080:8080 -v ./data:/data \
   -e BASE_URL=https://draw.example.com -e SECURE_COOKIES=true \
@@ -68,7 +79,7 @@ docker run -d --name pocket-draw -p 8080:8080 -v ./data:/data \
   ghcr.io/abjelosevic88/pocket-homelab-draw:latest
 ```
 
-or `docker compose up -d` with [docker-compose.yml](docker-compose.yml) (it has an optional `drawio` service). Open it, create the first account and start drawing. Without `DRAWIO_URL` sketches and text diagrams work; the Diagram kind is greyed out. All options: [docs/configuration.md](docs/configuration.md). API: [docs/api.md](docs/api.md).
+Open it, create the first account and start drawing. Without any draw.io sketches and text diagrams work; the Diagram kind is greyed out. All options: [docs/configuration.md](docs/configuration.md). API: [docs/api.md](docs/api.md).
 
 ## With Pocket Core
 
@@ -82,4 +93,4 @@ make test    # go vet, go test, tsc
 make         # web + binary
 ```
 
-Built on [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT), [Mermaid](https://github.com/mermaid-js/mermaid) (MIT) and [draw.io](https://github.com/jgraph/drawio) (Apache 2.0, embedded from your server). MIT licensed.
+Built on [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT), [Mermaid](https://github.com/mermaid-js/mermaid) (MIT) and [draw.io](https://github.com/jgraph/drawio) (Apache 2.0, the `jgraph/drawio` image, served by the app). MIT licensed.

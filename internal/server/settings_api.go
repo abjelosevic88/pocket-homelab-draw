@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/abjelosevic88/pocket-homelab-draw/internal/config"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -34,7 +35,7 @@ func mask(s string) string {
 func (s *Server) publicSettings(ctx context.Context, u *store.User, st store.Settings) map[string]any {
 	out := map[string]any{
 		"core_configured": s.core.Configured(), "core_registered": s.coreStatus()["registered"],
-		"title": st.Title, "drawio_url": st.DrawioURL, "date_format": st.DateFormat, "time_format": st.TimeFormat, "week_start": st.WeekStart,
+		"title": st.Title, "drawio_url": st.DrawioURL, "drawio_included": s.cfg.DrawioInternalURL != "", "date_format": st.DateFormat, "time_format": st.TimeFormat, "week_start": st.WeekStart,
 		"default_kind": st.DefaultKind, "sketch_grid": st.SketchGrid, "sketch_font": st.SketchFont, "sketch_snap": st.SketchSnap,
 		"mermaid_theme": st.MermaidTheme, "mermaid_look": st.MermaidLook, "list_style": st.ListStyle, "sort_by": st.SortBy,
 		"trash_days": st.TrashDays, "keep_versions": st.KeepVersions,
@@ -158,7 +159,7 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if keys["drawio_url"] && isAdmin {
 		u := strings.TrimRight(strings.TrimSpace(in.DrawioURL), "/")
-		if u != "" && !strings.HasPrefix(u, "https://") && !strings.HasPrefix(u, "http://") {
+		if u != "" && !strings.HasPrefix(u, "https://") && !strings.HasPrefix(u, "http://") && !(u == config.BundledDrawioPath && s.cfg.DrawioInternalURL != "") {
 			bad("the draw.io address starts with https://")
 			return
 		}

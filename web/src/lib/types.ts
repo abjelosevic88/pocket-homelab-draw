@@ -9,7 +9,7 @@ export type Kind = 'sketch' | 'mermaid' | 'drawio'
 export interface Settings {
   core_configured: boolean
   core_registered?: boolean
-  title: string; drawio_url: string; date_format: string; time_format: string; week_start: number
+  title: string; drawio_url: string; drawio_included?: boolean; date_format: string; time_format: string; week_start: number
   default_kind: 'ask' | Kind; sketch_grid: boolean; sketch_font: 'hand' | 'normal' | 'code'; sketch_snap: boolean
   mermaid_theme: 'auto' | 'default' | 'neutral' | 'forest' | 'dark' | 'base'; mermaid_look: 'classic' | 'handDrawn'
   list_style: 'grid' | 'list'; sort_by: 'edited' | 'created' | 'title'; trash_days: number; keep_versions: number

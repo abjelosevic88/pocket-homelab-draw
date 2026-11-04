@@ -10,7 +10,8 @@ Environment variables; every one has a default. Personal settings (new drawings,
 | `DB_PATH` | `$DATA_DIR/pocket-draw.db` | SQLite file |
 | `MAX_BODY_BYTES` | `67108864` | Largest request: a drawing being saved (pictures pasted into a sketch travel inside it) or an export being imported (64 MB) |
 | `TZ` | – | Time zone for days (Pocket Day) and the night clean-up |
-| `DRAWIO_URL` | – | The draw.io server diagrams open in: your own `jgraph/drawio` container or `https://embed.diagrams.net`. The browser loads it, so it must be an address the browser reaches. Empty: the Diagram kind is greyed out; sketches and text diagrams need nothing |
+| `DRAWIO_INTERNAL_URL` | – (`http://drawio:8080` in the sample compose file) | A `jgraph/drawio` container that Pocket Draw serves at `/drawio/` on its own address (the browser never needs to reach the container). Makes `/drawio` the default `DRAWIO_URL` |
+| `DRAWIO_URL` | – (`/drawio` with `DRAWIO_INTERNAL_URL`) | The draw.io server diagrams open in: `/drawio` (the one above), your own `jgraph/drawio` at an address the browser reaches, or `https://embed.diagrams.net`. Empty: the Diagram kind is greyed out; sketches and text diagrams need nothing |
 | `AUTH_MODE` | `local` | `local` (accounts), `proxy` (trust `AUTH_PROXY_HEADER`/`AUTH_PROXY_EMAIL_HEADER`), `none` |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | – | Seed the first admin while the database is empty |
 | `SESSION_TTL`, `SECURE_COOKIES` | `720h`, `false` | Set `SECURE_COOKIES=true` behind HTTPS |

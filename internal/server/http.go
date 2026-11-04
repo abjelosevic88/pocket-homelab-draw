@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/abjelosevic88/pocket-homelab-draw/internal/config"
 	"io"
 	"net/http"
 	"strconv"
@@ -29,6 +30,13 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.Compress(5))
 
 	r.Get("/pocket-ask.js", s.core.AskWidget("draw"))
+	if p := s.drawioProxy(); p != nil {
+		r.Get(config.BundledDrawioPath, func(w http.ResponseWriter, r *http.Request) {
+			// relative paths in draw.io need the trailing slash
+			http.Redirect(w, r, config.BundledDrawioPath+"/?"+r.URL.RawQuery, http.StatusMovedPermanently)
+		})
+		r.Handle(config.BundledDrawioPath+"/*", p)
+	}
 	r.Get("/healthz", s.handleHealth)
 	r.Get("/readyz", s.handleReady)
 	r.Get("/api/health", s.handleHealth)

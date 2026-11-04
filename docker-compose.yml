@@ -1,4 +1,7 @@
-# Pocket Draw — sketches, text diagrams and draw.io diagrams (Go + SQLite). One container, one volume.
+# Pocket Draw — sketches, text diagrams and draw.io diagrams (Go + SQLite).
+# `docker compose up -d` starts the app and draw.io for the Diagram kind. draw.io has no port of
+# its own: Pocket Draw serves it at /drawio/ on its own address. Don't want it? Delete the drawio
+# service and DRAWIO_INTERNAL_URL; diagrams can then use https://embed.diagrams.net or yours.
 services:
   pocket-draw:
     image: ghcr.io/abjelosevic88/pocket-homelab-draw:latest
@@ -13,7 +16,9 @@ services:
       # First admin (only used while the database has no users):
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      # Diagrams open in draw.io: your own (the drawio service below) or https://embed.diagrams.net.
+      # Diagrams open in draw.io: the drawio service below, served by this app at /drawio/.
+      DRAWIO_INTERNAL_URL: ${DRAWIO_INTERNAL_URL:-http://drawio:8080}
+      # Or another draw.io the browser reaches (e.g. https://embed.diagrams.net); wins over the one above.
       DRAWIO_URL: ${DRAWIO_URL:-}
       # The owner's own connections; everything can also be set under Settings.
       NOTIFY_URL: ${NOTIFY_URL:-}
@@ -25,11 +30,13 @@ services:
       - ./data:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      drawio:
+        condition: service_started
+        required: false
 
-  # Optional: your own draw.io for the Diagram kind (the browser loads it, so
-  # DRAWIO_URL must be an address the browser reaches, e.g. http://localhost:8081).
-  # drawio:
-  #   image: jgraph/drawio:latest
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8081:8080"
+  # draw.io, the official image (static: no data of its own; diagrams are kept by Pocket Draw).
+  drawio:
+    image: jgraph/drawio:latest
+    container_name: pocket-draw-drawio
+    restart: unless-stopped

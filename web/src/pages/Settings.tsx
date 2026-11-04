@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, V1 } from '../lib/api'
 import { ImportDialog } from '../components/Dialogs'
-import { DrawioHelp, HOSTED_DRAWIO } from '../components/DrawioHelp'
+import { DrawioHelp, HOSTED_DRAWIO, INCLUDED_DRAWIO } from '../components/DrawioHelp'
 import { useApp } from '../lib/app-context'
 import type { APIToken, ConnMode, Settings as SettingsT, User } from '../lib/types'
 import { DATE_FORMATS, TIME_FORMATS, fmtBytes, fmtDateTime, type DateFormat, type TimeFormat } from '../lib/format'
@@ -131,10 +131,10 @@ function General() {
             { value: 'ask', label: 'Ask me' }, { value: 'sketch', label: 'A sketch' }, { value: 'mermaid', label: 'A text diagram' },
             { value: 'drawio', label: 'A diagram (draw.io)', disabled: !f.drawio_url, hint: f.drawio_url ? undefined : 'not switched on yet' }]} />
         </SettingRow>
-        <SettingRow title="Diagrams (draw.io)" help={f.drawio_url ? <>On: diagrams open in draw.io from <code>{f.drawio_url}</code>.</> : 'Detailed flowcharts, floor plans and network maps open in draw.io, a free editor that needs an address first.'}>
+        <SettingRow title="Diagrams (draw.io)" help={f.drawio_url === INCLUDED_DRAWIO ? 'On: diagrams open in the draw.io that comes with Pocket Draw, on this server.' : f.drawio_url ? <>On: diagrams open in draw.io from <code>{f.drawio_url}</code>.</> : 'Detailed flowcharts, floor plans and network maps open in draw.io, a free editor that needs an address first.'}>
           {f.drawio_url ? <span className="badge ok">on</span> : <span className="badge">not on yet</span>}
         </SettingRow>
-        {!f.drawio_url && <DrawioHelp compact onReady={() => setF(cur => cur && { ...cur, drawio_url: HOSTED_DRAWIO })} />}
+        {!f.drawio_url && <DrawioHelp compact onReady={() => setF(cur => cur && { ...cur, drawio_url: f.drawio_included ? INCLUDED_DRAWIO : HOSTED_DRAWIO })} />}
       </Section>
       <Section title="Sketches" icon="pen" sub="The hand-drawn whiteboard (Excalidraw).">
         <SettingRow title="Text in" help="For new text; each text can be changed in the sketch."><Segmented size="sm" value={f.sketch_font} onChange={v => setF({ ...f, sketch_font: v })} options={[{ value: 'hand', label: 'Handwriting' }, { value: 'normal', label: 'Normal' }, { value: 'code', label: 'Code' }]} /></SettingRow>

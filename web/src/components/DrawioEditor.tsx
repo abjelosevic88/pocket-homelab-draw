@@ -12,7 +12,9 @@ export default function DrawioEditor({ data, title, dark, settings, onChange, on
   const pending = useRef<((svg: string) => void)[]>([])
   const wantPicture = useRef(!!onPicture && !!data.trim())
   const [ready, setReady] = useState(false)
-  const base = (settings.drawio_url || '').replace(/\/+$/, '')
+  // "/drawio": the draw.io this app serves itself (same origin)
+  const raw = (settings.drawio_url || '').replace(/\/+$/, '')
+  const base = raw.startsWith('/') ? window.location.origin + raw : raw
   const origin = (() => { try { return new URL(base).origin } catch { return '' } })()
 
   const post = (msg: Record<string, unknown>) => frame.current?.contentWindow?.postMessage(JSON.stringify(msg), origin || '*')

@@ -58,8 +58,13 @@ type Config struct {
 
 	// DrawioURL is the draw.io server diagrams open in (the jgraph/drawio
 	// image, or https://embed.diagrams.net). Copied once into the box
-	// settings; an admin can change it under Settings.
+	// settings; an admin can change it under Settings. "/drawio" means the
+	// draw.io this app serves itself (DrawioInternalURL).
 	DrawioURL string
+	// DrawioInternalURL is a draw.io container (the sample compose file's
+	// drawio service) that Pocket Draw serves at /drawio/, so the browser
+	// reaches it through this app and it needs no port or address of its own.
+	DrawioInternalURL string
 
 	// Pocket Core: when CORE_URL is set the app registers itself on start,
 	// publishes events and accepts the tokens Core hands to paired phones.
@@ -150,8 +155,9 @@ func Load() (*Config, error) {
 		OpenAIModel:   env("OPENAI_MODEL", ""),
 		OpenAIBaseURL: strings.TrimRight(env("OPENAI_BASE_URL", ""), "/"),
 
-		UserAgent: env("USER_AGENT", "PocketDraw/1.0 (+https://github.com/abjelosevic88/pocket-homelab-draw)"),
-		DrawioURL: strings.TrimRight(env("DRAWIO_URL", ""), "/"),
+		UserAgent:         env("USER_AGENT", "PocketDraw/1.0 (+https://github.com/abjelosevic88/pocket-homelab-draw)"),
+		DrawioURL:         strings.TrimRight(env("DRAWIO_URL", ""), "/"),
+		DrawioInternalURL: strings.TrimRight(env("DRAWIO_INTERNAL_URL", ""), "/"),
 
 		CoreURL:             strings.TrimRight(env("CORE_URL", ""), "/"),
 		CoreRegistrationKey: env("CORE_REGISTRATION_KEY", ""),
@@ -173,8 +179,14 @@ func Load() (*Config, error) {
 	if c.OIDCIssuer != "" && (c.OIDCClientID == "" || c.BaseURL == "") {
 		return nil, fmt.Errorf("OIDC_ISSUER needs OIDC_CLIENT_ID and BASE_URL (the callback is BASE_URL/api/v1/auth/oidc/callback)")
 	}
+	if c.DrawioInternalURL != "" && c.DrawioURL == "" {
+		c.DrawioURL = BundledDrawioPath
+	}
 	return c, nil
 }
+
+// BundledDrawioPath is where Pocket Draw serves the draw.io at DRAWIO_INTERNAL_URL.
+const BundledDrawioPath = "/drawio"
 
 // Addr returns host:port.
 func (c *Config) Addr() string { return fmt.Sprintf("%s:%d", c.Host, c.Port) }
