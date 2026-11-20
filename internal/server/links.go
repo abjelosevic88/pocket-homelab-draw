@@ -21,6 +21,22 @@ var linkOffers = []core.Offer{
 	{Scope: "drawings:write", Name: "Add drawings", Description: "Add a drawing for you (a diagram written by Pocket AI, a flowchart from a project) and change or remove only the drawings it added itself."},
 }
 
+// portable is what Pocket Move may copy out and bring in for a person
+// (docs/move.md in pocket-homelab-core); Register adds move:export/import.
+// Every import goes through POST /import, which works out the file itself.
+var portable = &core.Portable{
+	Exports: []core.PortableExport{
+		{Path: "/api/v1/export.json", File: "draw.json", Kind: core.KindPocket, Title: "Every sketch and diagram with its content and picture, your folders and your sketch library"},
+		{Path: "/api/v1/export.csv", File: "drawings.csv", Kind: core.KindCSV, Title: "Your drawings as a table (titles, kinds, folders, dates)"},
+	},
+	Imports: []core.PortableImport{
+		{Path: "/api/v1/import", Kind: core.KindPocket, Form: "file", Title: "Adds the drawings, folders and library from another box; drawings you already have are skipped"},
+		{Path: "/api/v1/import", Kind: "excalidraw", Form: "file", Title: "Adds an Excalidraw drawing (.excalidraw) as a sketch"},
+		{Path: "/api/v1/import", Kind: "drawio", Form: "file", Title: "Adds a draw.io diagram (.drawio)"},
+		{Path: "/api/v1/import", Kind: "mermaid", Form: "file", Title: "Adds a Mermaid diagram (.mmd, or Markdown with mermaid blocks)"},
+	},
+}
+
 type linkRoute struct {
 	methods string
 	path    *regexp.Regexp
@@ -41,6 +57,9 @@ var errLinkScope = errors.New("outside the link's scope")
 
 // linkAllows reports whether a link token with these scopes may make this request.
 func linkAllows(scopes []string, r *http.Request) bool {
+	if portable.LinkAllows(scopes, r) {
+		return true
+	}
 	for _, lr := range linkRoutes {
 		if !strings.Contains(" "+lr.methods+" ", " "+r.Method+" ") || !lr.path.MatchString(r.URL.Path) {
 			continue

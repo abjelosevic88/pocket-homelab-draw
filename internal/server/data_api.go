@@ -164,7 +164,20 @@ func (s *Server) handleImport(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, res)
+	writeJSON(w, http.StatusOK, res.answer())
+}
+
+// answer is the result with its counts nested (for the page) and at the top
+// level too (what Pocket Move shows; "drawings" there stays the new ids, so
+// their number is "imported").
+func (r *importResult) answer() map[string]any {
+	out := map[string]any{"kind": r.Kind, "counts": r.Counts, "drawings": r.Drawings, "imported": r.Counts["drawings"]}
+	for k, v := range r.Counts {
+		if _, taken := out[k]; !taken {
+			out[k] = v
+		}
+	}
+	return out
 }
 
 var errUnknownFile = errors.New("this is not a file Pocket Draw can read: a Pocket Draw export, .excalidraw, .excalidrawlib, .drawio, .mmd, Markdown with a mermaid block, or a Mermaid Live link")
@@ -219,6 +232,12 @@ func (s *Server) importFile(ctx context.Context, uid int64, name string, body []
 	kind := sniffImport(name, body)
 	res := &importResult{Kind: kind, Counts: map[string]int{}, Drawings: []int64{}}
 	add := func(in drawingIn) error {
+		// the same drawing brought in again is skipped, not doubled
+		var have int64
+		if s.store.DB.QueryRowContext(ctx, `SELECT id FROM drawings WHERE user_id = ? AND kind = ? AND data = ? AND trashed_at = '' LIMIT 1`, uid, in.Kind, in.Data).Scan(&have) == nil {
+			res.Counts["skipped"]++
+			return nil
+		}
 		in.FolderID = folder
 		d, err := s.newDrawing(ctx, uid, in, "import")
 		if err != nil {

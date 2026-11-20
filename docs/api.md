@@ -47,8 +47,10 @@ A drawing can be shared with other people on this box, to `edit` or to `view`. T
 
 | | |
 |---|---|
-| `POST /import?name=…&folder_id=…` | The file as the body (or multipart `file`): a Pocket Draw export, `.excalidraw`, `.excalidrawlib`, `.drawio`/`.xml`, `.mmd`, Markdown with ```` ```mermaid ```` blocks, or a Mermaid Live link → `{kind, counts, drawings}` |
+| `POST /import?name=…&folder_id=…` | The file as the body (or multipart `file`): a Pocket Draw export, `.excalidraw`, `.excalidrawlib`, `.drawio`/`.xml`, `.mmd`, Markdown with ```` ```mermaid ```` blocks, or a Mermaid Live link → `{kind, counts, drawings}` (the counts also at the top level, `imported` = new drawings); the same file again adds nothing |
 | `GET /export.json` · `GET /export.csv` | Everything (re-importable, by `uid`) · a list |
+
+Pocket Move can copy your drawings out and bring drawings in (`GET /pocket/portable`, link scopes `move:export` / `move:import`).
 
 ## AI
 
